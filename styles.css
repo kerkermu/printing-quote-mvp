@@ -718,6 +718,72 @@ dialog::backdrop {
   margin: 0 0 22px;
 }
 
+.official-form {
+  color: #111;
+  font-family: "Microsoft JhengHei", "PMingLiU", serif;
+}
+
+.official-form h2 {
+  font-size: 24px;
+  letter-spacing: 0;
+  margin-bottom: 8px;
+}
+
+.form-service-title {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 4px;
+}
+
+.vendor-free {
+  margin: 0 0 8px;
+  font-weight: 800;
+}
+
+.official-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.official-table th,
+.official-table td {
+  border: 1px solid #111;
+  padding: 6px 7px;
+  vertical-align: middle;
+  word-break: break-word;
+}
+
+.official-table th {
+  background: #f7f7f7;
+  text-align: center;
+  font-weight: 800;
+}
+
+.official-table td {
+  min-height: 28px;
+}
+
+.note-table td {
+  vertical-align: top;
+}
+
+.copy-note {
+  width: 18%;
+  text-align: center;
+  vertical-align: middle !important;
+}
+
+.form-footer {
+  margin: 8px 0 0;
+  font-size: 12px;
+  text-align: center;
+}
+
 .doc-table {
   width: 100%;
   border-collapse: collapse;

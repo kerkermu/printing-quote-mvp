@@ -245,6 +245,7 @@ function createCase(formData, estimate) {
       contactName: formData.contactName,
       email: formData.email,
       address: formData.address,
+      phone: state.user?.phone || "",
     },
     sample: {
       sampleName: formData.sampleName,
@@ -340,32 +341,170 @@ function itemRows(caseData) {
     .join("");
 }
 
+function checkedBox(isChecked, label) {
+  return `${isChecked ? "■" : "□"} ${label}`;
+}
+
+function hasSelected(caseData, itemId) {
+  return caseData.estimate.items.some((item) => item.id === itemId);
+}
+
+function selectedCategory(caseData) {
+  const selected = new Set(caseData.estimate.items.map((item) => item.category));
+  return selected.size === 1 && selected.has("paper") ? "paper" : "ink";
+}
+
+function selectedItemsByCategory(caseData, category) {
+  return caseData.estimate.items.filter((item) => item.category === category);
+}
+
+function officialItemList(caseData, category) {
+  const items = selectedItemsByCategory(caseData, category);
+  if (!items.length) return "□ 無";
+  return items.map((item) => `■ ${item.name}`).join("<br>");
+}
+
+function buildOfficialApplication(caseData) {
+  const date = new Date(caseData.createdAt).toLocaleDateString("zh-TW");
+  const { customer, sample, estimate } = caseData;
+  const formType = selectedCategory(caseData);
+  const title = formType === "paper" ? "紙張檢測申請書" : "印刷品及油墨檢測申請書";
+  const reportLang = sample.reportLang || "中文";
+  const isPaper = formType === "paper";
+
+  const paperRows = `
+    <tr>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-weight"), "1. 基重")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-folding"), "7. 耐折度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-smoothness"), "13. 平滑度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-curl"), "19. 捲曲度")}</td>
+    </tr>
+    <tr>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-thickness"), "2. 厚度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-roughness"), "8. 粗糙度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-water-resistance"), "14. 抗水度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-absorbency"), "20. 吸水性")}</td>
+    </tr>
+    <tr>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-moisture"), "3. 水分")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-air"), "9. 透氣度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-tear"), "15. 撕裂強度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-ink-absorbency"), "21. 吸墨性")}</td>
+    </tr>
+    <tr>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-whiteness"), "4. 白度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-burst"), "10. 破裂強度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-tensile"), "16. 抗張強度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-internal-bond"), "22. 層間強度")}</td>
+    </tr>
+    <tr>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-gloss"), "5. 光澤度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-stiffness"), "11. 挺度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-wax-pick"), "17. 表面強度蠟棒")}</td>
+      <td colspan="2"></td>
+    </tr>
+    <tr>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-color"), "6. 色度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-opacity"), "12. 不透明度")}</td>
+      <td colspan="2">${checkedBox(hasSelected(caseData, "paper-igt"), "18. 表面強度 IGT")}</td>
+      <td colspan="2"></td>
+    </tr>
+  `;
+
+  const inkRows = `
+    <tr>
+      <th colspan="2">（一）平板油墨檢測</th>
+      <th colspan="2">（二）印刷成品之印墨適性檢測</th>
+      <th colspan="2">（三）水槽液檢測</th>
+      <th colspan="2">其他服務</th>
+    </tr>
+    <tr>
+      <td colspan="2">${officialItemList(caseData, "offset-ink")}</td>
+      <td colspan="2">${officialItemList(caseData, "printed-ink")}</td>
+      <td colspan="2">${officialItemList(caseData, "fountain")}</td>
+      <td colspan="2">${officialItemList(caseData, "other")}</td>
+    </tr>
+  `;
+
+  return `
+    <section class="official-form">
+      <p class="form-service-title">印刷適性檢測服務</p>
+      <h2>${title}</h2>
+      <p class="vendor-free">●以下廠商免填</p>
+      <table class="official-table">
+        <tr>
+          <th>廠商名稱</th><td colspan="5">${customer.companyName}</td>
+          <th>申請日期</th><td colspan="2">${date}</td>
+        </tr>
+        <tr>
+          <th>發票地址</th><td colspan="5">${customer.address}</td>
+          <th>統一編號</th><td colspan="2">${customer.taxId}</td>
+        </tr>
+        <tr>
+          <th>公司地址</th><td colspan="5">${customer.address}</td>
+          <th>聯 絡 人</th><td colspan="2">${customer.contactName}</td>
+        </tr>
+        <tr>
+          <th>電子郵件</th><td colspan="5">${customer.email}</td>
+          <th>職　　稱</th><td colspan="2"></td>
+        </tr>
+        <tr>
+          <th>電　　話</th><td colspan="2">${customer.phone || ""}</td>
+          <th>傳　　真</th><td colspan="2"></td>
+          <th>行動電話</th><td colspan="2"></td>
+        </tr>
+        <tr>
+          <th rowspan="2">測試件</th>
+          <td colspan="8">
+            測試件名稱：${sample.sampleName}　
+            測試件數量：${sample.sampleQty}<br>
+            測試件狀態描述：${sample.material || sample.notes || ""}
+          </td>
+        </tr>
+        <tr>
+          <td colspan="4">剩餘測試件處理方式：□取回　□不取回</td>
+          <td colspan="4">正式紙本報告取件方式：□自取　□郵寄</td>
+        </tr>
+        <tr>
+          <th rowspan="${isPaper ? 8 : 4}">申 請 項 目</th>
+          <td colspan="4">${checkedBox(reportLang.includes("中文"), "中文報告")}　1 份</td>
+          <td colspan="4">${checkedBox(reportLang.includes("英文"), "英文報告")}　____ 份</td>
+        </tr>
+        ${
+          isPaper
+            ? `<tr><th colspan="2">紙張檢測項目</th><th colspan="2">紙張檢測項目</th><th colspan="2">紙張檢測項目</th><th colspan="2">紙張檢測項目</th></tr>${paperRows}`
+            : inkRows
+        }
+      </table>
+      <table class="official-table note-table">
+        <tr>
+          <th>注記欄</th>
+          <td>
+            檢測費用總計新台幣 ${money(estimate.total)} 元（含稅），第一次申請者需於七日內繳付全額至本中心行政組，收款後方可領取分析檢測報告。<br>
+            本次測試報告預計將於　　年　　月　　日送交申請者。<br>
+            如未註明需要中文或英文報告及其份數，本次測試僅提供壹份中文報告。<br>
+            如為標案、訴訟或裁決之案件將以專案方式處理。<br>
+            本申請書視同雙方合約。
+          </td>
+          <td class="copy-note">表格如不敷使用，請自行影印。</td>
+        </tr>
+        <tr>
+          <th>主管審核</th>
+          <td></td>
+          <td class="copy-note">表格如不敷使用，請自行影印。</td>
+        </tr>
+      </table>
+      <p class="form-footer">聯絡電話：(02)2999-0016　傳真：(02)2999-0018　地址：新北市三重區光復路一段61巷27號11樓之3　表單編號：FM-0051(2)</p>
+    </section>
+  `;
+}
+
 function buildDocument(caseData, type) {
   const date = new Date(caseData.createdAt).toLocaleDateString("zh-TW");
   const { customer, sample, estimate } = caseData;
 
   if (type === "application") {
-    return `
-      <h2>紙張適性檢測申請書</h2>
-      <table class="doc-table">
-        <tr><th>申請編號</th><td>${caseData.caseNo}</td><th>申請日期</th><td>${date}</td></tr>
-        <tr><th>公司名稱</th><td>${customer.companyName}</td><th>統一編號</th><td>${customer.taxId}</td></tr>
-        <tr><th>聯絡人</th><td>${customer.contactName}</td><th>Email</th><td>${customer.email}</td></tr>
-        <tr><th>公司地址</th><td colspan="3">${customer.address}</td></tr>
-        <tr><th>樣品名稱</th><td>${sample.sampleName}</td><th>樣品數量</th><td>${sample.sampleQty}</td></tr>
-        <tr><th>材質/規格</th><td>${sample.material}</td><th>報告語言</th><td>${sample.reportLang}</td></tr>
-        <tr><th>備註</th><td colspan="3">${sample.notes || "無"}</td></tr>
-      </table>
-      <table class="doc-table">
-        <thead><tr><th>項次</th><th>檢測項目</th><th>標準方法</th><th>工作天</th><th>單價</th></tr></thead>
-        <tbody>${itemRows(caseData)}</tbody>
-      </table>
-      <p>本申請書由系統依客戶填寫資料產生，實際檢測條件仍以印研中心確認後為準。</p>
-      <div class="signature-row">
-        <div class="signature-box">申請單位簽章：</div>
-        <div class="signature-box">印研中心承辦：</div>
-      </div>
-    `;
+    return buildOfficialApplication(caseData);
   }
 
   if (type === "quote") {
