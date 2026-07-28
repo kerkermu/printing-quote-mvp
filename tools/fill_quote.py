@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import shutil
 from datetime import date
@@ -140,13 +141,13 @@ def fee_lines(
     sample_count: int = 1,
 ) -> str:
     lines = []
-    for index, item in enumerate(items, start=1):
+    for item in items:
         name = item.get("name", "")
         price = item.get("price", 0)
         if not name:
             continue
         line_total = int(float(price or 0)) * sample_count
-        lines.append(f"{index}.  {name}{money(price)}元/件*{sample_count}種={money(line_total)}元")
+        lines.append(f"{name}{money(price)}元/件*{sample_count}種={money(line_total)}元")
     if int(float(estimate.get("reportFee") or 0)) > 0:
         lines.append(f"報告加購費用={money(estimate.get('reportFee'))}元")
     if int(float(estimate.get("urgent") or 0)) > 0:
@@ -155,26 +156,47 @@ def fee_lines(
     return lines
 
 
-def clear_paragraph_properties(paragraph) -> None:
-    p_pr = paragraph._p.pPr
-    if p_pr is not None:
-        paragraph._p.remove(p_pr)
+def clone_paragraph_properties(source_paragraph, target_paragraph, keep_numbering: bool) -> None:
+    source_p_pr = source_paragraph._p.pPr
+    old_p_pr = target_paragraph._p.pPr
+    if old_p_pr is not None:
+        target_paragraph._p.remove(old_p_pr)
+    if source_p_pr is None:
+        return
+
+    new_p_pr = copy.deepcopy(source_p_pr)
+    if not keep_numbering:
+        num_pr = new_p_pr.numPr
+        if num_pr is not None:
+            new_p_pr.remove(num_pr)
+    target_paragraph._p.insert(0, new_p_pr)
 
 
-def set_fee_lines(cell, lines: list[str], size_pt: int = 12) -> None:
+def set_fee_lines(cell, lines: list[str], size_pt: int = 18) -> None:
     if not lines:
         return
 
+    template_paragraphs = list(cell.paragraphs)
+    item_template = template_paragraphs[0] if template_paragraphs else cell.add_paragraph()
+    total_template = template_paragraphs[3] if len(template_paragraphs) > 3 else item_template
     first_paragraph = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
 
     for extra in cell.paragraphs[1:]:
         cell._tc.remove(extra._p)
 
-    for index, line in enumerate(lines):
+    item_lines = lines[:-1]
+    total_line = lines[-1]
+
+    for index, line in enumerate(item_lines):
         paragraph = first_paragraph if index == 0 else cell.add_paragraph()
-        clear_paragraph_properties(paragraph)
+        clone_paragraph_properties(item_template, paragraph, keep_numbering=True)
         paragraph.clear()
         add_mixed_font_text(paragraph, line, size_pt)
+
+    paragraph = cell.add_paragraph()
+    clone_paragraph_properties(total_template, paragraph, keep_numbering=True)
+    paragraph.clear()
+    add_mixed_font_text(paragraph, total_line, size_pt)
 
 
 def case_type_text(case_type: str) -> str:
@@ -235,7 +257,7 @@ def fill_quote(data: dict, template: Path, output: Path) -> Path:
     set_fee_lines(
         doc.tables[2].rows[0].cells[0],
         fee_lines(items, data.get("total", 0), estimate, case_type),
-        12,
+        18,
     )
 
     apply_number_font_to_doc(doc)
