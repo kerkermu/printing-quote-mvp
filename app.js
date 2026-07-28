@@ -229,17 +229,33 @@ function calculateEstimate() {
   const rawSubtotal = items.reduce((sum, item) => sum + item.price, 0);
   const minimumAdjustment = rawSubtotal > 0 && rawSubtotal < 2500 ? 2500 - rawSubtotal : 0;
   const subtotal = rawSubtotal + minimumAdjustment;
-  const urgent = $("#quoteForm").elements.urgent.checked ? Math.round(subtotal * 0.5) : 0;
+  const extraChineseReports = Number($("#quoteForm").elements.extraChineseReports.value || 0);
+  const englishReports = Number($("#quoteForm").elements.englishReports.value || 0);
+  const reportFee = extraChineseReports * 100 + englishReports * 200;
+  const urgentBase = subtotal + reportFee;
+  const urgent = $("#quoteForm").elements.urgent.checked ? Math.round(urgentBase * 0.5) : 0;
   const tax = 0;
-  const total = subtotal + urgent;
+  const total = subtotal + reportFee + urgent;
 
   $("#subtotalText").textContent =
     minimumAdjustment > 0 ? `${money(subtotal)}（含最低計費）` : money(subtotal);
+  $("#reportFeeText").textContent = money(reportFee);
   $("#urgentText").textContent = money(urgent);
   $("#taxText").textContent = "單價已含稅";
   $("#totalText").textContent = money(total);
 
-  return { rawSubtotal, minimumAdjustment, subtotal, urgent, tax, total, items };
+  return {
+    rawSubtotal,
+    minimumAdjustment,
+    subtotal,
+    extraChineseReports,
+    englishReports,
+    reportFee,
+    urgent,
+    tax,
+    total,
+    items,
+  };
 }
 
 function createCase(formData, estimate) {
@@ -270,7 +286,9 @@ function createCase(formData, estimate) {
       sampleName: formData.sampleName,
       sampleQty: formData.sampleQty,
       material: formData.material,
-      reportLang: formData.reportLang,
+      reportLang: Number(formData.englishReports || 0) > 0 ? "中英文" : "中文",
+      extraChineseReports: Number(formData.extraChineseReports || 0),
+      englishReports: Number(formData.englishReports || 0),
       sampleReturn: formData.sampleReturn,
       reportDelivery: formData.reportDelivery,
       caseType: formData.caseType,
@@ -397,6 +415,8 @@ function buildOfficialApplication(caseData) {
   const templateName =
     formType === "paper" ? "紙張適性檢測申請書_11406.docx" : "印刷品及油墨適性檢測申請書_11406.docx";
   const reportLang = sample.reportLang || "中文";
+  const chineseReportCount = 1 + Number(sample.extraChineseReports || 0);
+  const englishReportCount = Number(sample.englishReports || 0);
   const isPaper = formType === "paper";
 
   const paperRows = `
@@ -488,7 +508,7 @@ function buildOfficialApplication(caseData) {
         ]
           .filter(Boolean)
           .join("、")}</td></tr>
-        <tr><th>報告語言</th><td>${reportLang}</td><th>含稅總額</th><td>${money(estimate.total)}</td></tr>
+        <tr><th>報告份數</th><td>中文 ${chineseReportCount} 份，英文 ${englishReportCount} 份</td><th>含稅總額</th><td>${money(estimate.total)}</td></tr>
       </table>
     </section>
 
@@ -529,6 +549,7 @@ function buildDocument(caseData, type) {
         <tbody>${itemRows(caseData)}</tbody>
         <tfoot>
           <tr><th colspan="4">檢測費用小計（含稅）</th><td>${money(estimate.subtotal)}</td></tr>
+          <tr><th colspan="4">報告加購</th><td>${money(estimate.reportFee || 0)}</td></tr>
           <tr><th colspan="4">急件加成</th><td>${money(estimate.urgent)}</td></tr>
           <tr><th colspan="4">含稅總計</th><td><strong>${money(estimate.total)}</strong></td></tr>
         </tfoot>

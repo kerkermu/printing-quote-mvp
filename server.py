@@ -51,6 +51,8 @@ def case_payload_to_template_data(payload: dict) -> dict:
             "quantity": sample.get("sampleQty", ""),
             "description": sample.get("material") or sample.get("notes", ""),
             "report_language": sample.get("reportLang", "中文"),
+            "extra_chinese_reports": sample.get("extraChineseReports", 0),
+            "english_reports": sample.get("englishReports", 0),
             "sample_return": sample.get("sampleReturn", ""),
             "report_delivery": sample.get("reportDelivery", ""),
             "case_type": sample.get("caseType", "一般件"),

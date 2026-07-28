@@ -207,11 +207,12 @@ def fill_common_fields(doc: Document, data: dict) -> None:
     replace_text_preserving_runs(doc, replacements)
 
     report_language = sample.get("report_language", "中文")
+    chinese_report_count = 1 + int(sample.get("extra_chinese_reports") or 0)
+    english_report_count = int(sample.get("english_reports") or 0)
     replacements = {}
-    if "中文" in report_language:
-        replacements["□ 中文報告     份"] = "■ 中文報告  1  份"
-    if "英文" in report_language:
-        replacements["□ 英文報告_____份"] = "■ 英文報告__1__份"
+    replacements["□ 中文報告     份"] = f"■ 中文報告  {chinese_report_count}  份"
+    if "英文" in report_language or english_report_count > 0:
+        replacements["□ 英文報告_____份"] = f"■ 英文報告__{english_report_count}__份"
     replace_text_preserving_runs(doc, replacements)
 
 

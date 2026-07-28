@@ -264,12 +264,12 @@
                   </label>
                 </fieldset>
                 <label>
-                  報告語言
-                  <select name="reportLang">
-                    <option>中文</option>
-                    <option>英文</option>
-                    <option>中英文</option>
-                  </select>
+                  中文報告加購份數
+                  <input name="extraChineseReports" type="number" min="0" step="1" value="0" />
+                </label>
+                <label>
+                  英文報告份數
+                  <input name="englishReports" type="number" min="0" step="1" value="0" />
                 </label>
                 <label class="full-row">
                   其他說明
@@ -315,6 +315,10 @@
                 <div>
                   <dt>檢測小計</dt>
                   <dd id="subtotalText">NT$0</dd>
+                </div>
+                <div>
+                  <dt>報告加購</dt>
+                  <dd id="reportFeeText">NT$0</dd>
                 </div>
                 <div>
                   <dt>急件加成</dt>

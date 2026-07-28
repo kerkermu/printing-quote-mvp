@@ -18,6 +18,8 @@
     "quantity": "12張",
     "description": "紙張",
     "report_language": "中文",
+    "extra_chinese_reports": 1,
+    "english_reports": 2,
     "sample_return": "不取回",
     "report_delivery": "郵寄",
     "case_type": "急件",
