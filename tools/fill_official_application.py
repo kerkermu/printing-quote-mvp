@@ -100,6 +100,17 @@ def cell(row, index):
     return row.cells[index]
 
 
+def roc_date(value: str | None = None) -> str:
+    if value:
+        try:
+            parsed = date.fromisoformat(value[:10])
+        except ValueError:
+            parsed = date.today()
+    else:
+        parsed = date.today()
+    return f"{parsed.year - 1911}年{parsed.month}月{parsed.day}日"
+
+
 def format_run(run, font_size: float = 12.0) -> None:
     run.font.name = "標楷體"
     run._element.rPr.rFonts.set(qn("w:eastAsia"), "標楷體")
@@ -136,6 +147,13 @@ def set_cell_text(target_cell, value: str, font_size: float = 12.0) -> None:
     target_cell.text = value or ""
     for paragraph in target_cell.paragraphs:
         format_paragraph(paragraph, font_size)
+
+
+def add_formatted_run(paragraph, text: str, font_size: float = 12.0, underline: bool = False):
+    run = paragraph.add_run(text)
+    format_run(run, font_size)
+    run.underline = underline
+    return run
 
 
 def replace_text_preserving_runs(
@@ -184,7 +202,7 @@ def fill_common_fields(doc: Document, data: dict) -> None:
     application_date = data.get("application_date") or date.today().isoformat()
 
     set_cell_text(cell(table.rows[0], 2), customer.get("company_name", ""))
-    set_cell_text(cell(table.rows[0], 11), application_date)
+    set_cell_text(cell(table.rows[0], 11), roc_date(application_date))
     set_cell_text(cell(table.rows[1], 2), customer.get("invoice_address") or customer.get("address", ""))
     set_cell_text(cell(table.rows[1], 11), customer.get("tax_id", ""))
     set_cell_text(cell(table.rows[2], 2), customer.get("address", ""))
@@ -234,14 +252,30 @@ def fill_common_fields(doc: Document, data: dict) -> None:
             replacements["□其他________"] = f"■其他 {sample.get('attachment_other', '')}"
     replace_text_preserving_runs(doc, replacements)
 
-    report_language = sample.get("report_language", "中文")
     chinese_report_count = 1 + int(sample.get("extra_chinese_reports") or 0)
     english_report_count = int(sample.get("english_reports") or 0)
-    replacements = {}
-    replacements["□ 中文報告     份"] = f"■ 中文報告  {chinese_report_count}  份"
-    if "英文" in report_language or english_report_count > 0:
-        replacements["□ 英文報告_____份"] = f"■ 英文報告__{english_report_count}__份"
-    replace_text_preserving_runs(doc, replacements)
+    replace_report_copy_lines(doc, chinese_report_count, english_report_count)
+
+
+def replace_report_copy_lines(
+    doc: Document, chinese_report_count: int, english_report_count: int
+) -> None:
+    for table in doc.tables:
+        for row in table.rows:
+            for target_cell in row.cells:
+                for paragraph in target_cell.paragraphs:
+                    text = paragraph.text
+                    if "中文報告" in text:
+                        paragraph.clear()
+                        add_formatted_run(paragraph, "■ 中文報告  ")
+                        add_formatted_run(paragraph, str(chinese_report_count), underline=True)
+                        add_formatted_run(paragraph, "  份")
+                    elif "英文報告" in text:
+                        paragraph.clear()
+                        checkbox = "■" if english_report_count > 0 else "□"
+                        add_formatted_run(paragraph, f"{checkbox} 英文報告  ")
+                        add_formatted_run(paragraph, str(english_report_count), underline=True)
+                        add_formatted_run(paragraph, "  份")
 
 
 def fill_note_total(doc: Document, total: int | str | None) -> None:
