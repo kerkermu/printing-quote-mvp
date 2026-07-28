@@ -369,6 +369,8 @@ function buildOfficialApplication(caseData) {
   const { customer, sample, estimate } = caseData;
   const formType = selectedCategory(caseData);
   const title = formType === "paper" ? "紙張檢測申請書" : "印刷品及油墨檢測申請書";
+  const templateName =
+    formType === "paper" ? "紙張適性檢測申請書_11406.docx" : "印刷品及油墨適性檢測申請書_11406.docx";
   const reportLang = sample.reportLang || "中文";
   const isPaper = formType === "paper";
 
@@ -427,74 +429,47 @@ function buildOfficialApplication(caseData) {
   `;
 
   return `
-    <section class="official-form">
-      <p class="form-service-title">印刷適性檢測服務</p>
-      <h2>${title}</h2>
-      <p class="vendor-free">●以下廠商免填</p>
-      <table class="official-table">
-        <tr>
-          <th>廠商名稱</th><td colspan="5">${customer.companyName}</td>
-          <th>申請日期</th><td colspan="2">${date}</td>
-        </tr>
-        <tr>
-          <th>發票地址</th><td colspan="5">${customer.address}</td>
-          <th>統一編號</th><td colspan="2">${customer.taxId}</td>
-        </tr>
-        <tr>
-          <th>公司地址</th><td colspan="5">${customer.address}</td>
-          <th>聯 絡 人</th><td colspan="2">${customer.contactName}</td>
-        </tr>
-        <tr>
-          <th>電子郵件</th><td colspan="5">${customer.email}</td>
-          <th>職　　稱</th><td colspan="2"></td>
-        </tr>
-        <tr>
-          <th>電　　話</th><td colspan="2">${customer.phone || ""}</td>
-          <th>傳　　真</th><td colspan="2"></td>
-          <th>行動電話</th><td colspan="2"></td>
-        </tr>
-        <tr>
-          <th rowspan="2">測試件</th>
-          <td colspan="8">
-            測試件名稱：${sample.sampleName}　
-            測試件數量：${sample.sampleQty}<br>
-            測試件狀態描述：${sample.material || sample.notes || ""}
-          </td>
-        </tr>
-        <tr>
-          <td colspan="4">剩餘測試件處理方式：□取回　□不取回</td>
-          <td colspan="4">正式紙本報告取件方式：□自取　□郵寄</td>
-        </tr>
-        <tr>
-          <th rowspan="${isPaper ? 8 : 4}">申 請 項 目</th>
-          <td colspan="4">${checkedBox(reportLang.includes("中文"), "中文報告")}　1 份</td>
-          <td colspan="4">${checkedBox(reportLang.includes("英文"), "英文報告")}　____ 份</td>
-        </tr>
+    <section class="official-output-notice">
+      <div class="notice-main">
+        <p class="eyebrow">Official Word Template</p>
+        <h2>${title}</h2>
+        <p>
+          正式送給客戶簽名蓋章的申請書，會使用原始 Word 模板
+          <strong>${templateName}</strong>
+          套入資料產生，版面、表格、字型與頁面設定不會由網頁重新排版。
+        </p>
+      </div>
+      <div class="template-card">
+        <span>套用模板</span>
+        <strong>${templateName}</strong>
+      </div>
+    </section>
+
+    <section class="official-data-review">
+      <h3>將帶入正式申請書的資料</h3>
+      <table class="doc-table">
+        <tr><th>廠商名稱</th><td>${customer.companyName}</td><th>申請日期</th><td>${date}</td></tr>
+        <tr><th>發票地址</th><td>${customer.address}</td><th>統一編號</th><td>${customer.taxId}</td></tr>
+        <tr><th>公司地址</th><td>${customer.address}</td><th>聯絡人</th><td>${customer.contactName}</td></tr>
+        <tr><th>電子郵件</th><td>${customer.email}</td><th>電話</th><td>${customer.phone || ""}</td></tr>
+        <tr><th>測試件名稱</th><td>${sample.sampleName}</td><th>測試件數量</th><td>${sample.sampleQty}</td></tr>
+        <tr><th>測試件描述</th><td colspan="3">${sample.material || sample.notes || ""}</td></tr>
+        <tr><th>報告語言</th><td>${reportLang}</td><th>含稅總額</th><td>${money(estimate.total)}</td></tr>
+      </table>
+    </section>
+
+    <section class="official-selection-review">
+      <h3>將於官方模板中勾選的項目</h3>
+      <table class="doc-table">
         ${
           isPaper
-            ? `<tr><th colspan="2">紙張檢測項目</th><th colspan="2">紙張檢測項目</th><th colspan="2">紙張檢測項目</th><th colspan="2">紙張檢測項目</th></tr>${paperRows}`
+            ? `<tr><th colspan="4">紙張檢測申請項目</th></tr>${paperRows}`
             : inkRows
         }
       </table>
-      <table class="official-table note-table">
-        <tr>
-          <th>注記欄</th>
-          <td>
-            檢測費用總計新台幣 ${money(estimate.total)} 元（含稅），第一次申請者需於七日內繳付全額至本中心行政組，收款後方可領取分析檢測報告。<br>
-            本次測試報告預計將於　　年　　月　　日送交申請者。<br>
-            如未註明需要中文或英文報告及其份數，本次測試僅提供壹份中文報告。<br>
-            如為標案、訴訟或裁決之案件將以專案方式處理。<br>
-            本申請書視同雙方合約。
-          </td>
-          <td class="copy-note">表格如不敷使用，請自行影印。</td>
-        </tr>
-        <tr>
-          <th>主管審核</th>
-          <td></td>
-          <td class="copy-note">表格如不敷使用，請自行影印。</td>
-        </tr>
-      </table>
-      <p class="form-footer">聯絡電話：(02)2999-0016　傳真：(02)2999-0018　地址：新北市三重區光復路一段61巷27號11樓之3　表單編號：FM-0051(2)</p>
+      <p class="fine-print">
+        這裡只顯示將帶入模板的資料與勾選結果，避免客戶誤認網頁預覽就是正式申請書。正式文件請以下載產生的 Word / PDF 為準。
+      </p>
     </section>
   `;
 }

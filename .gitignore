@@ -8,5 +8,7 @@ node_modules/
 dist/
 build/
 .cache/
+__pycache__/
+*.pyc
 generated_forms/
 private_templates/
