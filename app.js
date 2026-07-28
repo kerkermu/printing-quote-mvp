@@ -96,13 +96,33 @@ const testItems = [
   days: 14,
 }));
 
+const demoUser = {
+  email: "ken.ding@msa.hinet.net",
+  companyName: "肯定實業股份有限公司",
+  taxId: "86106811",
+  contactName: "洪昭治",
+  phone: "02-82457355 #200",
+  mobile: "0922451707",
+  jobTitle: "",
+  address: "新北市中和區連城路160號後棟",
+  invoiceAddress: "新北市中和區連城路160號後棟",
+  fax: "02-82457320",
+};
+
+const defaultTestIds = new Set(["paper-weight", "paper-whiteness", "paper-opacity"]);
+
 const state = {
-  user: JSON.parse(localStorage.getItem("ptri_user") || "null"),
+  user: JSON.parse(localStorage.getItem("ptri_user") || JSON.stringify(demoUser)),
   cases: JSON.parse(localStorage.getItem("ptri_cases") || "[]"),
   selectedDoc: "application",
   activeCase: null,
   previewPdfUrl: null,
 };
+
+if (state.user?.email === "customer@example.com" || state.user?.companyName === demoUser.companyName) {
+  state.user = { ...demoUser };
+  localStorage.setItem("ptri_user", JSON.stringify(state.user));
+}
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -218,6 +238,10 @@ function renderTests() {
     `
     )
     .join("");
+
+  $$('input[name="tests"]').forEach((input) => {
+    input.checked = defaultTestIds.has(input.value);
+  });
 }
 
 function getSelectedItems() {
@@ -806,10 +830,10 @@ function bindEvents() {
     if (!confirm("確定要清除 demo 資料？")) return;
     localStorage.removeItem("ptri_user");
     localStorage.removeItem("ptri_cases");
-    state.user = null;
+    state.user = { ...demoUser };
     state.cases = [];
     syncAccountUi();
-    setView("login");
+    setView("quote");
   });
 }
 
