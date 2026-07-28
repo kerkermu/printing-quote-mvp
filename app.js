@@ -703,19 +703,6 @@ async function renderOfficialPdfPreview(docType) {
   }
 }
 
-function downloadCurrentHtml() {
-  const content = `<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>${state.activeCase.caseNo}</title><style>${document
-    .querySelector("style")
-    ?.textContent || ""}</style><body>${$("#documentPreview").outerHTML}</body></html>`;
-  const blob = new Blob([content], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${state.activeCase.caseNo}_${state.selectedDoc}.html`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 async function downloadOfficialDocx() {
   if (!state.activeCase) return;
   const isQuote = state.selectedDoc === "quote";
@@ -822,8 +809,6 @@ function bindEvents() {
     releasePreviewPdfUrl();
     $("#documentDialog").close();
   });
-  $("#printDocBtn").addEventListener("click", () => window.print());
-  $("#downloadHtmlBtn").addEventListener("click", downloadCurrentHtml);
   $("#downloadOfficialDocxBtn").addEventListener("click", downloadOfficialDocx);
 
   $("#resetDemoBtn").addEventListener("click", () => {
