@@ -9,6 +9,7 @@ from datetime import date
 from pathlib import Path
 
 from docx import Document
+from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt
 
@@ -95,6 +96,16 @@ def set_cell_text(cell, text: str, size_pt: int = 12) -> None:
     clear_paragraph_numbering(paragraph)
     paragraph.clear()
     add_mixed_font_text(paragraph, str(text or ""), size_pt)
+
+
+def keep_cell_on_one_line(cell) -> None:
+    tc_pr = cell._tc.get_or_add_tcPr()
+    if tc_pr.find(qn("w:noWrap")) is None:
+        tc_pr.append(OxmlElement("w:noWrap"))
+
+
+def no_break_phone(value: str) -> str:
+    return str(value or "").replace(" ", "\u00a0")
 
 
 def clear_paragraph_numbering(paragraph) -> None:
@@ -207,7 +218,8 @@ def fill_quote(data: dict, template: Path, output: Path) -> Path:
     set_cell_text(table.rows[0].cells[1], customer.get("companyName", ""), 16)
     set_cell_text(table.rows[0].cells[3], roc_date(data.get("quote_date")), 16)
     set_cell_text(table.rows[1].cells[1], customer.get("contactName", ""), 16)
-    set_cell_text(table.rows[1].cells[3], customer.get("phone", ""), 16)
+    keep_cell_on_one_line(table.rows[1].cells[3])
+    set_cell_text(table.rows[1].cells[3], no_break_phone(customer.get("phone", "")), 16)
     set_cell_text(table.rows[2].cells[1], customer.get("address", ""), 16)
     set_cell_text(table.rows[2].cells[3], customer.get("fax", ""), 16)
 
@@ -217,7 +229,8 @@ def fill_quote(data: dict, template: Path, output: Path) -> Path:
     table = doc.tables[1]
     set_cell_text(table.rows[0].cells[1], f"1種樣本，名稱：{sample_name}", 18)
     set_cell_text(table.rows[1].cells[2], names, 18)
-    set_cell_text(table.rows[2].cells[3], case_type_text(case_type), 18)
+    keep_cell_on_one_line(table.rows[2].cells[3])
+    set_cell_text(table.rows[2].cells[3], case_type_text(case_type), 16)
 
     set_fee_lines(
         doc.tables[2].rows[0].cells[0],
