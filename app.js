@@ -221,13 +221,13 @@ function calculateEstimate() {
   const minimumAdjustment = rawSubtotal > 0 && rawSubtotal < 2500 ? 2500 - rawSubtotal : 0;
   const subtotal = rawSubtotal + minimumAdjustment;
   const urgent = $("#quoteForm").elements.urgent.checked ? Math.round(subtotal * 0.5) : 0;
-  const tax = Math.round((subtotal + urgent) * 0.05);
-  const total = subtotal + urgent + tax;
+  const tax = 0;
+  const total = subtotal + urgent;
 
   $("#subtotalText").textContent =
     minimumAdjustment > 0 ? `${money(subtotal)}（含最低計費）` : money(subtotal);
   $("#urgentText").textContent = money(urgent);
-  $("#taxText").textContent = money(tax);
+  $("#taxText").textContent = "單價已含稅";
   $("#totalText").textContent = money(total);
 
   return { rawSubtotal, minimumAdjustment, subtotal, urgent, tax, total, items };
@@ -508,10 +508,9 @@ function buildDocument(caseData, type) {
         <thead><tr><th>項次</th><th>檢測項目</th><th>檢測方法</th><th>工作天</th><th>金額</th></tr></thead>
         <tbody>${itemRows(caseData)}</tbody>
         <tfoot>
-          <tr><th colspan="4">小計</th><td>${money(estimate.subtotal)}</td></tr>
+          <tr><th colspan="4">檢測費用小計（含稅）</th><td>${money(estimate.subtotal)}</td></tr>
           <tr><th colspan="4">急件加成</th><td>${money(estimate.urgent)}</td></tr>
-          <tr><th colspan="4">營業稅 5%</th><td>${money(estimate.tax)}</td></tr>
-          <tr><th colspan="4">總計</th><td><strong>${money(estimate.total)}</strong></td></tr>
+          <tr><th colspan="4">含稅總計</th><td><strong>${money(estimate.total)}</strong></td></tr>
         </tfoot>
       </table>
       <p>本報價單為系統預估版本，正式報價以印研中心確認後之文件為準。</p>

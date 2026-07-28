@@ -34,19 +34,19 @@ PAPER_ITEM_LABELS = {
     "paper-folding": "7. 耐折度",
     "paper-roughness": "8. 粗糙度",
     "paper-air": "9. 透氣度",
-    "paper-burst": "10. 破裂強度",
-    "paper-stiffness": "11. 挺度",
-    "paper-opacity": "12. 不透明度",
-    "paper-smoothness": "13. 平滑度",
-    "paper-water-resistance": "14. 抗水度",
-    "paper-tear": "15. 撕裂強度",
-    "paper-tensile": "16. 抗張強度",
-    "paper-wax-pick": "17. 表面強度蠟棒",
-    "paper-igt": "18. 表面強度IGT",
-    "paper-curl": "19. 捲曲度",
-    "paper-absorbency": "20. 吸水性",
-    "paper-ink-absorbency": "21. 吸墨性",
-    "paper-internal-bond": "22. 層間強度",
+    "paper-burst": "10.破裂強度",
+    "paper-stiffness": "11.挺度",
+    "paper-opacity": "12.不透明度",
+    "paper-smoothness": "13.平滑度",
+    "paper-water-resistance": "14.抗水度",
+    "paper-tear": "15.撕裂強度",
+    "paper-tensile": "16.抗張強度",
+    "paper-wax-pick": "17.表面強度蠟棒",
+    "paper-igt": "18.表面強度IGT展色",
+    "paper-curl": "19.捲曲度",
+    "paper-absorbency": "20.吸水性",
+    "paper-ink-absorbency": "21.吸墨性",
+    "paper-internal-bond": "22.層間強度",
 }
 
 INK_ITEM_LABELS = {
@@ -130,6 +130,7 @@ def mark_checked_boxes(doc: Document, selected_item_ids: list[str], label_map: d
     replacements = {}
     for label in selected_labels:
         replacements[f"□ {label}"] = f"■ {label}"
+        replacements[f"□{label}"] = f"■{label}"
     replace_text_preserving_runs(doc, replacements)
 
 

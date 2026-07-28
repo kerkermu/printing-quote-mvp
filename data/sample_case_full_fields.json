@@ -1,0 +1,29 @@
+{
+  "application_date": "2026-07-28",
+  "total_with_tax": 2730,
+  "customer": {
+    "company_name": "肯定實業股份有限公司",
+    "tax_id": "86106811",
+    "invoice_address": "新北市中和區連城路160號後棟",
+    "address": "新北市中和區連城路160號後棟",
+    "contact_name": "洪招治",
+    "job_title": "",
+    "email": "ken.ding@msa.hinet.net",
+    "phone": "02-82457355 #200",
+    "fax": "02-82457320",
+    "mobile": "0922451707"
+  },
+  "sample": {
+    "name": "紙張",
+    "quantity": "12張",
+    "description": "紙張",
+    "report_language": "中文",
+    "sample_return": "不取回",
+    "report_delivery": "郵寄"
+  },
+  "selected_item_ids": [
+    "paper-weight",
+    "paper-whiteness",
+    "paper-opacity"
+  ]
+}
