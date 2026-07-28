@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>印研中心檢測線上報價 MVP</title>
+    <meta
+      name="description"
+      content="印研中心檢測線上報價暨文件產生系統 MVP demo"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">印</div>
+          <div>
+            <h1>印研中心</h1>
+            <p>檢測線上報價 MVP</p>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="主要功能">
+          <button class="nav-item active" data-view="quote">新增詢價</button>
+          <button class="nav-item" data-view="cases">我的案件</button>
+          <button class="nav-item" data-view="admin">內部後台</button>
+          <button class="nav-item" data-view="settings">帳戶資料</button>
+        </nav>
+
+        <section class="account-panel">
+          <p class="eyebrow">目前登入</p>
+          <strong id="currentCompany">尚未登入</strong>
+          <span id="currentEmail">請先建立 demo 帳號</span>
+        </section>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Printing Technology Research Institute</p>
+            <h2 id="viewTitle">新增檢測詢價</h2>
+          </div>
+          <button class="ghost-button" id="resetDemoBtn" type="button">重置 demo</button>
+        </header>
+
+        <section class="view active" id="loginView" aria-labelledby="loginTitle">
+          <div class="intro">
+            <div>
+              <p class="eyebrow">MVP demo</p>
+              <h2 id="loginTitle">客戶登入後可自動帶入公司資料</h2>
+              <p>
+                這個版本先展示核心流程：登入、填寫樣品、選擇檢測項目、產生申請書與報價單，並同步建立內部簽呈。
+              </p>
+            </div>
+          </div>
+
+          <form class="panel form-grid" id="loginForm">
+            <label>
+              Email
+              <input required name="email" type="email" value="customer@example.com" />
+            </label>
+            <label>
+              公司名稱
+              <input required name="companyName" value="肯定實業股份有限公司" />
+            </label>
+            <label>
+              統一編號
+              <input required name="taxId" value="12345678" />
+            </label>
+            <label>
+              聯絡人
+              <input required name="contactName" value="王小姐" />
+            </label>
+            <label>
+              聯絡電話
+              <input required name="phone" value="02-2345-6789" />
+            </label>
+            <label>
+              公司地址
+              <input required name="address" value="新北市中和區建一路 99 號" />
+            </label>
+            <button class="primary-button full-row" type="submit">登入並開始詢價</button>
+          </form>
+        </section>
+
+        <section class="view" id="quoteView">
+          <div class="workflow">
+            <span class="step active">1 公司資料</span>
+            <span class="step active">2 樣品資料</span>
+            <span class="step active">3 檢測項目</span>
+            <span class="step">4 文件產生</span>
+          </div>
+
+          <form class="quote-layout" id="quoteForm">
+            <section class="panel">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Customer</p>
+                  <h3>客戶資料</h3>
+                </div>
+                <span class="pill">登入後自動帶入</span>
+              </div>
+              <div class="form-grid">
+                <label>
+                  公司名稱
+                  <input required name="companyName" />
+                </label>
+                <label>
+                  統一編號
+                  <input required name="taxId" />
+                </label>
+                <label>
+                  聯絡人
+                  <input required name="contactName" />
+                </label>
+                <label>
+                  Email
+                  <input required name="email" type="email" />
+                </label>
+                <label class="full-row">
+                  公司地址
+                  <input required name="address" />
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Sample</p>
+                  <h3>樣品資料</h3>
+                </div>
+              </div>
+              <div class="form-grid">
+                <label>
+                  樣品名稱
+                  <input required name="sampleName" value="銅版紙樣品" />
+                </label>
+                <label>
+                  樣品數量
+                  <input required name="sampleQty" value="10 張" />
+                </label>
+                <label>
+                  材質/規格
+                  <input name="material" value="紙張 157 gsm" />
+                </label>
+                <label>
+                  報告語言
+                  <select name="reportLang">
+                    <option>中文</option>
+                    <option>英文</option>
+                    <option>中英文</option>
+                  </select>
+                </label>
+                <label class="full-row">
+                  備註
+                  <textarea name="notes" rows="3">請協助確認紙張印刷適性與表面性能。</textarea>
+                </label>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Tests</p>
+                  <h3>檢測項目</h3>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" name="urgent" />
+                  急件
+                </label>
+              </div>
+              <div class="test-list" id="testList"></div>
+            </section>
+
+            <aside class="summary-panel">
+              <p class="eyebrow">Estimate</p>
+              <h3>預估報價</h3>
+              <dl>
+                <div>
+                  <dt>檢測小計</dt>
+                  <dd id="subtotalText">NT$0</dd>
+                </div>
+                <div>
+                  <dt>急件加成</dt>
+                  <dd id="urgentText">NT$0</dd>
+                </div>
+                <div>
+                  <dt>營業稅 5%</dt>
+                  <dd id="taxText">NT$0</dd>
+                </div>
+                <div class="total-row">
+                  <dt>總計</dt>
+                  <dd id="totalText">NT$0</dd>
+                </div>
+              </dl>
+              <p class="fine-print">
+                本金額為系統預估，實際金額與時程仍以印研中心確認樣品與檢測條件後為準。
+              </p>
+              <button class="primary-button" type="submit">送出並產生文件</button>
+            </aside>
+          </form>
+        </section>
+
+        <section class="view" id="casesView">
+          <div class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Cases</p>
+                <h3>歷史詢價案件</h3>
+              </div>
+            </div>
+            <div class="case-list" id="caseList"></div>
+          </div>
+        </section>
+
+        <section class="view" id="adminView">
+          <div class="admin-grid">
+            <section class="panel">
+              <p class="eyebrow">Internal</p>
+              <h3>內部案件看板</h3>
+              <div class="kanban" id="kanban"></div>
+            </section>
+            <section class="panel">
+              <p class="eyebrow">Checklist</p>
+              <h3>第一版後台功能</h3>
+              <ul class="checklist">
+                <li>確認客戶資料與樣品資訊</li>
+                <li>調整正式報價金額</li>
+                <li>產生內部簽呈</li>
+                <li>追蹤待回簽、已回簽、已開案狀態</li>
+              </ul>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="settingsView">
+          <form class="panel form-grid" id="profileForm">
+            <label>
+              Email
+              <input required name="email" type="email" />
+            </label>
+            <label>
+              公司名稱
+              <input required name="companyName" />
+            </label>
+            <label>
+              統一編號
+              <input required name="taxId" />
+            </label>
+            <label>
+              聯絡人
+              <input required name="contactName" />
+            </label>
+            <label>
+              電話
+              <input required name="phone" />
+            </label>
+            <label>
+              地址
+              <input required name="address" />
+            </label>
+            <button class="primary-button full-row" type="submit">更新帳戶資料</button>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="documentDialog">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">Generated documents</p>
+          <h3 id="dialogTitle">文件預覽</h3>
+        </div>
+        <button class="icon-button" id="closeDialogBtn" type="button" aria-label="關閉">x</button>
+      </div>
+      <div class="document-tabs">
+        <button class="doc-tab active" data-doc="application">申請書</button>
+        <button class="doc-tab" data-doc="quote">報價單</button>
+        <button class="doc-tab" data-doc="memo">內部簽呈</button>
+      </div>
+      <article class="document-preview" id="documentPreview"></article>
+      <div class="dialog-actions">
+        <button class="ghost-button" id="downloadHtmlBtn" type="button">下載 HTML</button>
+        <button class="primary-button" id="printDocBtn" type="button">列印/轉 PDF</button>
+      </div>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
