@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import subprocess
 from datetime import date
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -12,12 +13,42 @@ from tools.fill_official_application import INK_TEMPLATE, PAPER_TEMPLATE, fill_a
 
 ROOT = Path(__file__).resolve().parent
 GENERATED_DIR = ROOT / "generated_forms"
+PDF_EXPORT_SCRIPT = GENERATED_DIR / "_export_word_pdf.ps1"
+
+
+WORD_TO_PDF_SCRIPT = r"""
+param(
+  [Parameter(Mandatory=$true)][string]$DocxPath,
+  [Parameter(Mandatory=$true)][string]$PdfPath
+)
+
+$ErrorActionPreference = "Stop"
+$word = $null
+$doc = $null
+try {
+  $word = New-Object -ComObject Word.Application
+  $word.Visible = $false
+  $word.DisplayAlerts = 0
+  $doc = $word.Documents.Open($DocxPath, $false, $true)
+  if (Test-Path -LiteralPath $PdfPath) {
+    Remove-Item -LiteralPath $PdfPath -Force
+  }
+  $doc.ExportAsFixedFormat($PdfPath, 17)
+} finally {
+  if ($doc -ne $null) {
+    $doc.Close($false)
+  }
+  if ($word -ne $null) {
+    $word.Quit()
+  }
+}
+"""
 
 
 def clean_filename(value: str) -> str:
     keep = []
     for char in value:
-        if char.isalnum() or char in ("-", "_", " ", "(", ")", "（", "）"):
+        if char.isalnum() or char in ("-", "_", " ", "(", ")", "（", "）", "."):
             keep.append(char)
         else:
             keep.append("_")
@@ -79,7 +110,7 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:
-        if self.path != "/api/generate-application":
+        if self.path not in ("/api/generate-application", "/api/preview-application"):
             self.send_error(404, "Not found")
             return
 
@@ -88,7 +119,10 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
             raw_body = self.rfile.read(length)
             payload = json.loads(raw_body.decode("utf-8"))
             output = self.generate_application(payload)
-            self.send_docx(output)
+            if self.path == "/api/preview-application":
+                self.send_pdf(self.convert_docx_to_pdf(output))
+            else:
+                self.send_docx(output)
         except Exception as exc:  # noqa: BLE001 - surface controlled error to MVP UI
             self.send_json({"ok": False, "error": str(exc)}, status=500)
 
@@ -99,6 +133,35 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
         filename = clean_filename(f"{case_no}_{company}_申請書.docx")
         output = GENERATED_DIR / filename
         return fill_application(data, PAPER_TEMPLATE, INK_TEMPLATE, output)
+
+    def convert_docx_to_pdf(self, docx_path: Path) -> Path:
+        GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+        PDF_EXPORT_SCRIPT.write_text(WORD_TO_PDF_SCRIPT, encoding="utf-8")
+        pdf_path = docx_path.with_suffix(".pdf")
+
+        completed = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(PDF_EXPORT_SCRIPT),
+                str(docx_path),
+                str(pdf_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=90,
+            check=False,
+        )
+        if completed.returncode != 0 or not pdf_path.exists():
+            details = (completed.stderr or completed.stdout or "").strip()
+            raise RuntimeError(
+                "Unable to create PDF preview. Please make sure Microsoft Word is installed. "
+                + details
+            )
+        return pdf_path
 
     def send_json(self, data: dict, status: int = 200) -> None:
         encoded = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -122,6 +185,20 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
         self.send_header(
             "Content-Disposition",
             f"attachment; filename*=UTF-8''{encoded_filename}",
+        )
+        self.end_headers()
+        self.wfile.write(content)
+
+    def send_pdf(self, path: Path) -> None:
+        content = path.read_bytes()
+        filename = path.name
+        encoded_filename = quote(filename)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/pdf")
+        self.send_header("Content-Length", str(len(content)))
+        self.send_header(
+            "Content-Disposition",
+            f"inline; filename*=UTF-8''{encoded_filename}",
         )
         self.end_headers()
         self.wfile.write(content)

@@ -101,6 +101,7 @@ const state = {
   cases: JSON.parse(localStorage.getItem("ptri_cases") || "[]"),
   selectedDoc: "application",
   activeCase: null,
+  previewPdfUrl: null,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -604,7 +605,73 @@ function renderDocumentPreview() {
   $$(".doc-tab").forEach((tab) =>
     tab.classList.toggle("active", tab.dataset.doc === state.selectedDoc)
   );
+  if (state.selectedDoc === "application") {
+    renderOfficialPdfPreview();
+    return;
+  }
+  releasePreviewPdfUrl();
   $("#documentPreview").innerHTML = buildDocument(state.activeCase, state.selectedDoc);
+}
+
+function releasePreviewPdfUrl() {
+  if (!state.previewPdfUrl) return;
+  URL.revokeObjectURL(state.previewPdfUrl);
+  state.previewPdfUrl = null;
+}
+
+async function renderOfficialPdfPreview() {
+  const preview = $("#documentPreview");
+  releasePreviewPdfUrl();
+
+  if (window.location.protocol === "file:") {
+    preview.innerHTML = buildDocument(state.activeCase, "application");
+    return;
+  }
+
+  preview.innerHTML = `
+    <div class="pdf-loading">
+      <strong>正在產生正式申請書預覽</strong>
+      <span>系統會先套用官方 Word 模板，再轉成 PDF 顯示。</span>
+    </div>
+  `;
+
+  try {
+    const response = await fetch("/api/preview-application", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state.activeCase),
+    });
+
+    if (!response.ok) {
+      let message = "無法產生正式文件預覽。";
+      try {
+        const error = await response.json();
+        message = error.error || message;
+      } catch {
+        // Keep generic message when the response is not JSON.
+      }
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    state.previewPdfUrl = URL.createObjectURL(blob);
+    preview.innerHTML = `
+      <iframe
+        class="pdf-preview-frame"
+        title="正式申請書 PDF 預覽"
+        src="${state.previewPdfUrl}"
+      ></iframe>
+    `;
+  } catch (error) {
+    preview.innerHTML = `
+      <div class="pdf-error">
+        <strong>正式文件預覽暫時無法顯示</strong>
+        <span>${error.message}</span>
+        <span>仍可使用下方按鈕下載正式申請書 Word。</span>
+      </div>
+      ${buildDocument(state.activeCase, "application")}
+    `;
+  }
 }
 
 function downloadCurrentHtml() {
@@ -719,7 +786,10 @@ function bindEvents() {
     });
   });
 
-  $("#closeDialogBtn").addEventListener("click", () => $("#documentDialog").close());
+  $("#closeDialogBtn").addEventListener("click", () => {
+    releasePreviewPdfUrl();
+    $("#documentDialog").close();
+  });
   $("#printDocBtn").addEventListener("click", () => window.print());
   $("#downloadHtmlBtn").addEventListener("click", downloadCurrentHtml);
   $("#downloadOfficialDocxBtn").addEventListener("click", downloadOfficialDocx);
