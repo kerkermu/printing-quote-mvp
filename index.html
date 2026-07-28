@@ -210,12 +210,21 @@
                   <p class="eyebrow">Printability Tests</p>
                   <h3>印刷適性檢測項目</h3>
                 </div>
-                <label class="toggle">
-                  <input type="checkbox" name="urgent" />
-                  急件
-                </label>
+                <div class="inline-controls">
+                  <label>
+                    類別
+                    <select id="categoryFilter" name="categoryFilter"></select>
+                  </label>
+                  <label class="toggle">
+                    <input type="checkbox" name="urgent" />
+                    急件 1.5 倍
+                  </label>
+                </div>
               </div>
               <div class="test-list" id="testList"></div>
+              <p class="fine-print price-note">
+                收費標準依 114 年 6 月 1 日實施之紙張、印刷品及油墨適性檢測申請程序。每案檢測費用未滿 NT$2,500，以 NT$2,500 計費；特急件與專案項目需另行確認。
+              </p>
             </section>
 
             <aside class="summary-panel">

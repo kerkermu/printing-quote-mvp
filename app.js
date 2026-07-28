@@ -1,47 +1,101 @@
-const testItems = [
-  {
-    id: "paper-weight",
-    name: "基重測定",
-    method: "CNS / ISO 紙張基本物性",
-    price: 800,
-    days: 3,
-  },
-  {
-    id: "paper-thickness",
-    name: "厚度測定",
-    method: "CNS / ISO 紙張厚度量測",
-    price: 900,
-    days: 3,
-  },
-  {
-    id: "surface",
-    name: "表面粗糙度",
-    method: "PPS / Bendtsen method",
-    price: 1800,
-    days: 5,
-  },
-  {
-    id: "ink-absorption",
-    name: "油墨吸收性",
-    method: "印刷適性實驗方法",
-    price: 2500,
-    days: 7,
-  },
-  {
-    id: "rub",
-    name: "耐磨擦試驗",
-    method: "乾/濕摩擦測試",
-    price: 1600,
-    days: 5,
-  },
-  {
-    id: "color-density",
-    name: "印刷濃度與色差",
-    method: "ISO 13655 / 色差量測",
-    price: 2200,
-    days: 5,
-  },
+const categories = [
+  { id: "all", name: "全部檢測項目" },
+  { id: "paper", name: "紙張適性檢測" },
+  { id: "offset-ink", name: "平版油墨基本特性" },
+  { id: "printed-ink", name: "印刷成品印墨適性" },
+  { id: "fountain", name: "平版印刷水槽液" },
+  { id: "other", name: "其他服務" },
 ];
+
+const testItems = [
+  ["paper-weight", "paper", "基重", "紙張適性檢測", 600, "元 / 每件"],
+  ["paper-thickness", "paper", "厚度", "紙張適性檢測", 600, "元 / 每件"],
+  ["paper-moisture", "paper", "水分", "紙張適性檢測", 800, "元 / 每件"],
+  ["paper-whiteness", "paper", "白度", "紙張適性檢測", 900, "元 / 每件"],
+  ["paper-gloss", "paper", "光澤度", "紙張適性檢測", 900, "元 / 每件"],
+  ["paper-color", "paper", "色度", "紙張適性檢測", 900, "元 / 每件"],
+  ["paper-folding", "paper", "耐折度", "紙張適性檢測", 1000, "元 / 每件"],
+  ["paper-roughness", "paper", "粗糙度", "紙張適性檢測", 1000, "元 / 每件"],
+  ["paper-air", "paper", "透氣度", "紙張適性檢測", 1000, "元 / 每件"],
+  ["paper-burst", "paper", "破裂強度", "紙張適性檢測", 1100, "元 / 每件"],
+  ["paper-stiffness", "paper", "挺度", "紙張適性檢測", 1100, "元 / 每件"],
+  ["paper-opacity", "paper", "不透明度", "紙張適性檢測", 1100, "元 / 每件"],
+  ["paper-smoothness", "paper", "平滑度", "紙張適性檢測", 1100, "元 / 每件"],
+  ["paper-water-resistance", "paper", "抗水度", "紙張適性檢測", 1100, "元 / 每件"],
+  ["paper-tear", "paper", "撕裂強度", "紙張適性檢測", 1100, "元 / 每件"],
+  ["paper-tensile", "paper", "抗張強度", "紙張適性檢測", 1100, "元 / 每件"],
+  ["paper-wax-pick", "paper", "表面強度蠟棒", "紙張適性檢測", 1300, "元 / 每件"],
+  ["paper-igt", "paper", "表面強度 IGT", "紙張適性檢測", 1300, "元 / 每件"],
+  ["paper-curl", "paper", "捲曲度", "紙張適性檢測", 1500, "元 / 每件"],
+  ["paper-absorbency", "paper", "吸水性", "紙張適性檢測", 1500, "元 / 每件"],
+  ["paper-ink-absorbency", "paper", "吸墨性", "紙張適性檢測", 1500, "元 / 每件"],
+  ["paper-internal-bond", "paper", "層間強度", "紙張適性檢測", 1500, "元 / 每件"],
+
+  ["ink-particle-general", "offset-ink", "粒度（一般油墨）", "平版油墨基本特性", 300, "元 / 色"],
+  ["ink-particle-special", "offset-ink", "粒度（特殊油墨）", "平版油墨基本特性", 350, "元 / 色"],
+  ["ink-viscosity-general", "offset-ink", "粘度（一般油墨）", "平版油墨基本特性", 600, "元 / 色"],
+  ["ink-viscosity-special", "offset-ink", "粘度（特殊油墨）", "平版油墨基本特性", 650, "元 / 色"],
+  ["ink-emulsification-general", "offset-ink", "乳化率（一般油墨）", "平版油墨基本特性", 400, "元 / 色"],
+  ["ink-emulsification-special", "offset-ink", "乳化率（特殊油墨）", "平版油墨基本特性", 500, "元 / 色"],
+  ["ink-ph-general", "offset-ink", "溶出 pH 值（一般油墨）", "平版油墨基本特性", 400, "元 / 色"],
+  ["ink-ph-special", "offset-ink", "溶出 pH 值（特殊油墨）", "平版油墨基本特性", 500, "元 / 色"],
+  ["ink-color-strength-general", "offset-ink", "色強度（一般油墨）", "平版油墨基本特性", 300, "元 / 色"],
+  ["ink-color-strength-special", "offset-ink", "色強度（特殊油墨）", "平版油墨基本特性", 350, "元 / 色"],
+  ["ink-split-general", "offset-ink", "抗分裂力（一般油墨）", "平版油墨基本特性", 400, "元 / 色"],
+  ["ink-split-special", "offset-ink", "抗分裂力（特殊油墨）", "平版油墨基本特性", 500, "元 / 色"],
+
+  ["printed-heat-general", "printed-ink", "耐高溫（一般油墨）", "印刷成品印墨適性", 200, "元 / 色"],
+  ["printed-heat-special", "printed-ink", "耐高溫（特殊油墨）", "印刷成品印墨適性", 250, "元 / 色"],
+  ["printed-humidity-general", "printed-ink", "耐高濕（一般油墨）", "印刷成品印墨適性", 200, "元 / 色"],
+  ["printed-humidity-special", "printed-ink", "耐高濕（特殊油墨）", "印刷成品印墨適性", 250, "元 / 色"],
+  ["printed-pressure-general", "printed-ink", "耐高壓（一般油墨）", "印刷成品印墨適性", 200, "元 / 色"],
+  ["printed-pressure-special", "printed-ink", "耐高壓（特殊油墨）", "印刷成品印墨適性", 250, "元 / 色"],
+  ["printed-light-general", "printed-ink", "耐光性（一般油墨）", "印刷成品印墨適性", 60, "元 / HR"],
+  ["printed-light-special", "printed-ink", "耐光性（特殊油墨）", "印刷成品印墨適性", 65, "元 / HR"],
+  ["printed-weather-general", "printed-ink", "耐候性（一般油墨）", "印刷成品印墨適性", 150, "元 / HR"],
+  ["printed-weather-special", "printed-ink", "耐候性（特殊油墨）", "印刷成品印墨適性", 160, "元 / HR"],
+  ["printed-chemical-general", "printed-ink", "耐化學藥品（一般油墨）", "印刷成品印墨適性", 500, "元 / 色"],
+  ["printed-chemical-special", "printed-ink", "耐化學藥品（特殊油墨）", "印刷成品印墨適性", 550, "元 / 色"],
+  ["printed-density-general", "printed-ink", "濃度測試（一般油墨）", "印刷成品印墨適性", 250, "元 / 色"],
+  ["printed-density-special", "printed-ink", "濃度測試（特殊油墨）", "印刷成品印墨適性", 250, "元 / 色"],
+  ["printed-color-general", "printed-ink", "色度測試（一般油墨）", "印刷成品印墨適性", 900, "元 / 色"],
+  ["printed-color-special", "printed-ink", "色度測試（特殊油墨）", "印刷成品印墨適性", 900, "元 / 色"],
+  ["printed-oil-general", "printed-ink", "耐油性（一般油墨）", "印刷成品印墨適性", 500, "元 / 色"],
+  ["printed-oil-special", "printed-ink", "耐油性（特殊油墨）", "印刷成品印墨適性", 550, "元 / 色"],
+  ["printed-film-general", "printed-ink", "膜厚測試（一般油墨）", "印刷成品印墨適性", 200, "元 / 色"],
+  ["printed-film-special", "printed-ink", "膜厚測試（特殊油墨）", "印刷成品印墨適性", 300, "元 / 色"],
+  ["printed-adhesion-general", "printed-ink", "密著性測試（一般油墨）", "印刷成品印墨適性", 250, "元 / 色"],
+  ["printed-adhesion-special", "printed-ink", "密著性測試（特殊油墨）", "印刷成品印墨適性", 250, "元 / 色"],
+  ["printed-hardness-general", "printed-ink", "墨膜硬度（一般油墨）", "印刷成品印墨適性", 250, "元 / 色"],
+  ["printed-hardness-special", "printed-ink", "墨膜硬度（特殊油墨）", "印刷成品印墨適性", 250, "元 / 色"],
+
+  ["fountain-ph", "fountain", "pH 值", "平版印刷水槽液檢測", 500, "元 / 每件"],
+  ["fountain-hardness", "fountain", "硬度", "平版印刷水槽液檢測", 500, "元 / 每件"],
+  ["fountain-conductivity", "fountain", "電導度", "平版印刷水槽液檢測", 500, "元 / 每件"],
+  ["fountain-alcohol", "fountain", "酒精（異丙醇）濃度", "平版印刷水槽液檢測", 500, "元 / 每件"],
+
+  ["other-drying", "other", "平板油墨乾燥時間檢驗", "其他服務", 600, "元 / 色"],
+  ["other-gamut", "other", "平板油墨六角形、圖形色域圖繪製", "其他服務", 1500, "元 / 張"],
+  ["other-igt-general", "other", "IGT 展色（一般墨）", "其他服務", 350, "元 / 條"],
+  ["other-igt-special", "other", "IGT 展色（特殊墨）", "其他服務", 450, "元 / 條"],
+  ["other-uv-drying", "other", "UV 油墨乾燥", "其他服務", 100, "元 / 條"],
+  ["other-profile", "other", "印表機或印刷機 PROFILE 建立", "其他服務", 3000, "元 / 次"],
+  ["other-rub", "other", "印刷品耐磨擦特性檢驗", "其他服務", 600, "元 / 張"],
+  ["other-gloss", "other", "印刷品光澤度測試", "其他服務", 900, "元 / 次"],
+  ["other-cross-cut", "other", "百格測試", "其他服務", 600, "元 / 次"],
+  ["other-opacity", "other", "油墨遮蔽率測試", "其他服務", 600, "元 / 色"],
+  ["other-surface-tension", "other", "表面張力測試", "其他服務", 300, "元 / 張"],
+  ["other-display-calibration", "other", "螢幕量測校正", "其他服務", 2000, "元 / 次"],
+  ["other-display-calibration-onsite", "other", "螢幕量測校正（赴廠）", "其他服務", 3000, "元 / 次"],
+].map(([id, category, name, method, price, unit]) => ({
+  id,
+  category,
+  name,
+  method,
+  price,
+  unit,
+  days: 14,
+}));
 
 const state = {
   user: JSON.parse(localStorage.getItem("ptri_user") || "null"),
@@ -124,15 +178,25 @@ function fillProfileForm() {
   if (state.user) fillForm($("#profileForm"), state.user);
 }
 
+function renderCategoryFilter() {
+  $("#categoryFilter").innerHTML = categories
+    .map((category) => `<option value="${category.id}">${category.name}</option>`)
+    .join("");
+}
+
 function renderTests() {
-  $("#testList").innerHTML = testItems
+  const category = $("#categoryFilter")?.value || "all";
+  const visibleItems =
+    category === "all" ? testItems : testItems.filter((item) => item.category === category);
+
+  $("#testList").innerHTML = visibleItems
     .map(
-      (item, index) => `
+      (item) => `
       <label class="test-item">
-        <input type="checkbox" name="tests" value="${item.id}" ${index < 3 ? "checked" : ""} />
+        <input type="checkbox" name="tests" value="${item.id}" />
         <span>
           <h4>${item.name}</h4>
-          <p>${item.method}｜預估 ${item.days} 工作天</p>
+          <p>${item.method}｜${item.unit}｜一般件約 ${item.days} 工作天</p>
         </span>
         <span class="price">${money(item.price)}</span>
       </label>
@@ -148,17 +212,20 @@ function getSelectedItems() {
 
 function calculateEstimate() {
   const items = getSelectedItems();
-  const subtotal = items.reduce((sum, item) => sum + item.price, 0);
-  const urgent = $("#quoteForm").elements.urgent.checked ? Math.round(subtotal * 0.3) : 0;
+  const rawSubtotal = items.reduce((sum, item) => sum + item.price, 0);
+  const minimumAdjustment = rawSubtotal > 0 && rawSubtotal < 2500 ? 2500 - rawSubtotal : 0;
+  const subtotal = rawSubtotal + minimumAdjustment;
+  const urgent = $("#quoteForm").elements.urgent.checked ? Math.round(subtotal * 0.5) : 0;
   const tax = Math.round((subtotal + urgent) * 0.05);
   const total = subtotal + urgent + tax;
 
-  $("#subtotalText").textContent = money(subtotal);
+  $("#subtotalText").textContent =
+    minimumAdjustment > 0 ? `${money(subtotal)}（含最低計費）` : money(subtotal);
   $("#urgentText").textContent = money(urgent);
   $("#taxText").textContent = money(tax);
   $("#totalText").textContent = money(total);
 
-  return { subtotal, urgent, tax, total, items };
+  return { rawSubtotal, minimumAdjustment, subtotal, urgent, tax, total, items };
 }
 
 function createCase(formData, estimate) {
@@ -266,7 +333,7 @@ function itemRows(caseData) {
         <td>${item.name}</td>
         <td>${item.method}</td>
         <td>${item.days} 工作天</td>
-        <td>${money(item.price)}</td>
+        <td>${money(item.price)} / ${item.unit.replace("元 / ", "")}</td>
       </tr>
     `
     )
@@ -398,6 +465,10 @@ function bindEvents() {
   $("#quoteForm").addEventListener("input", calculateEstimate);
   $("#quoteForm").addEventListener("change", calculateEstimate);
   $("#quoteForm").addEventListener("submit", submitQuote);
+  $("#categoryFilter").addEventListener("change", () => {
+    renderTests();
+    calculateEstimate();
+  });
 
   document.body.addEventListener("click", (event) => {
     const openCaseId = event.target.dataset.openCase;
@@ -430,6 +501,7 @@ function bindEvents() {
 }
 
 function init() {
+  renderCategoryFilter();
   renderTests();
   bindEvents();
   syncAccountUi();
