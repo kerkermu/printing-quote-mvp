@@ -19,7 +19,13 @@
     "description": "紙張",
     "report_language": "中文",
     "sample_return": "不取回",
-    "report_delivery": "郵寄"
+    "report_delivery": "郵寄",
+    "case_type": "急件",
+    "attachments": [
+      "工廠登記證影本一份",
+      "公司執照影本一份"
+    ],
+    "attachment_other": ""
   },
   "selected_item_ids": [
     "paper-weight",

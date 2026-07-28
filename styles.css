@@ -410,6 +410,45 @@ label {
   font-weight: 700;
 }
 
+.field-group {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.field-group legend {
+  padding: 0 6px;
+  color: #344349;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.check-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.other-attachment {
+  align-items: center;
+}
+
+.other-attachment input[type="text"],
+.other-attachment input:not([type]) {
+  min-width: 0;
+  flex: 1;
+}
+
 input,
 textarea,
 select {
@@ -965,6 +1004,10 @@ dialog::backdrop {
 
   .inline-controls label:not(.toggle) {
     min-width: 100%;
+  }
+
+  .field-group {
+    grid-template-columns: 1fr;
   }
 
   .official-output-notice {

@@ -240,6 +240,30 @@
                   </select>
                 </label>
                 <label>
+                  案件類型
+                  <select name="caseType">
+                    <option>一般件</option>
+                    <option>急件</option>
+                    <option>特急件</option>
+                  </select>
+                </label>
+                <fieldset class="field-group full-row">
+                  <legend>檢附證件</legend>
+                  <label class="check-label">
+                    <input type="checkbox" name="attachments" value="工廠登記證影本一份" />
+                    工廠登記證影本一份
+                  </label>
+                  <label class="check-label">
+                    <input type="checkbox" name="attachments" value="公司執照影本一份" />
+                    公司執照影本一份
+                  </label>
+                  <label class="check-label other-attachment">
+                    <input type="checkbox" name="attachments" value="其他" />
+                    其他
+                    <input name="attachmentOther" placeholder="請填寫其他證件" />
+                  </label>
+                </fieldset>
+                <label>
                   報告語言
                   <select name="reportLang">
                     <option>中文</option>

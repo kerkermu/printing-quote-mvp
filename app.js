@@ -152,7 +152,10 @@ function syncAccountUi() {
 }
 
 function readForm(form) {
-  return Object.fromEntries(new FormData(form).entries());
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData.entries());
+  data.attachments = formData.getAll("attachments");
+  return data;
 }
 
 function fillForm(form, data) {
@@ -270,6 +273,9 @@ function createCase(formData, estimate) {
       reportLang: formData.reportLang,
       sampleReturn: formData.sampleReturn,
       reportDelivery: formData.reportDelivery,
+      caseType: formData.caseType,
+      attachments: formData.attachments || [],
+      attachmentOther: formData.attachmentOther || "",
       notes: formData.notes,
     },
     estimate,
@@ -476,6 +482,12 @@ function buildOfficialApplication(caseData) {
         <tr><th>測試件名稱</th><td>${sample.sampleName}</td><th>測試件數量</th><td>${sample.sampleQty}</td></tr>
         <tr><th>測試件描述</th><td colspan="3">${sample.material || sample.notes || ""}</td></tr>
         <tr><th>剩餘測試件處理</th><td>${sample.sampleReturn || ""}</td><th>報告取件方式</th><td>${sample.reportDelivery || ""}</td></tr>
+        <tr><th>案件類型</th><td>${sample.caseType || "一般件"}</td><th>檢附證件</th><td>${[
+          ...(sample.attachments || []),
+          sample.attachmentOther ? `其他：${sample.attachmentOther}` : "",
+        ]
+          .filter(Boolean)
+          .join("、")}</td></tr>
         <tr><th>報告語言</th><td>${reportLang}</td><th>含稅總額</th><td>${money(estimate.total)}</td></tr>
       </table>
     </section>

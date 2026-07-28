@@ -53,6 +53,9 @@ def case_payload_to_template_data(payload: dict) -> dict:
             "report_language": sample.get("reportLang", "中文"),
             "sample_return": sample.get("sampleReturn", ""),
             "report_delivery": sample.get("reportDelivery", ""),
+            "case_type": sample.get("caseType", "一般件"),
+            "attachments": sample.get("attachments", []),
+            "attachment_other": sample.get("attachmentOther", ""),
         },
         "selected_item_ids": [item.get("id") for item in items if item.get("id")],
     }
