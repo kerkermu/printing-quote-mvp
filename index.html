@@ -247,8 +247,18 @@
                     <option>特急件</option>
                   </select>
                 </label>
+                <label>
+                  是否為廠商首次申請檢測
+                  <select name="isFirstApplication">
+                    <option value="no">否，曾申請過</option>
+                    <option value="yes">是，首次申請</option>
+                  </select>
+                </label>
                 <fieldset class="field-group full-row">
-                  <legend>檢附證件</legend>
+                  <legend>首次申請檢附證件</legend>
+                  <p class="field-help">
+                    廠商首次申請檢測時須提供其中一項；曾申請過者免附。
+                  </p>
                   <label class="check-label">
                     <input type="checkbox" name="attachments" value="工廠登記證影本一份" />
                     工廠登記證影本一份

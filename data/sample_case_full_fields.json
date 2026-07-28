@@ -23,6 +23,7 @@
     "sample_return": "不取回",
     "report_delivery": "郵寄",
     "case_type": "急件",
+    "is_first_application": "yes",
     "attachments": [
       "工廠登記證影本一份",
       "公司執照影本一份"

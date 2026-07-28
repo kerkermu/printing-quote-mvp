@@ -201,14 +201,15 @@ def fill_common_fields(doc: Document, data: dict) -> None:
         "□ 急件": f"{'■' if case_type == '急件' else '□'} 急件",
         "□ 特急件": f"{'■' if case_type == '特急件' else '□'} 特急件",
     }
-    attachments = set(sample.get("attachments", []))
-    if "工廠登記證影本一份" in attachments:
-        replacements["□工廠登記證影本一份"] = "■工廠登記證影本一份"
-    if "公司執照影本一份" in attachments:
-        replacements["□公司執照影本一份"] = "■公司執照影本一份"
-    if "其他" in attachments or sample.get("attachment_other"):
-        replacements["□其他_______"] = f"■其他 {sample.get('attachment_other', '')}"
-        replacements["□其他________"] = f"■其他 {sample.get('attachment_other', '')}"
+    if sample.get("is_first_application") == "yes":
+        attachments = set(sample.get("attachments", []))
+        if "工廠登記證影本一份" in attachments:
+            replacements["□工廠登記證影本一份"] = "■工廠登記證影本一份"
+        if "公司執照影本一份" in attachments:
+            replacements["□公司執照影本一份"] = "■公司執照影本一份"
+        if "其他" in attachments or sample.get("attachment_other"):
+            replacements["□其他_______"] = f"■其他 {sample.get('attachment_other', '')}"
+            replacements["□其他________"] = f"■其他 {sample.get('attachment_other', '')}"
     replace_text_preserving_runs(doc, replacements)
 
     report_language = sample.get("report_language", "中文")

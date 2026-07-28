@@ -296,6 +296,7 @@ function createCase(formData, estimate) {
       sampleReturn: formData.sampleReturn,
       reportDelivery: formData.reportDelivery,
       caseType: formData.caseType,
+      isFirstApplication: formData.isFirstApplication,
       attachments: formData.attachments || [],
       attachmentOther: formData.attachmentOther || "",
       notes: formData.notes,
@@ -311,8 +312,13 @@ function submitQuote(event) {
     alert("請至少選擇一個檢測項目。");
     return;
   }
+  const formData = readForm(event.currentTarget);
+  if (formData.isFirstApplication === "yes" && formData.attachments.length === 0) {
+    alert("首次申請檢測廠商須至少勾選一項檢附證件。");
+    return;
+  }
 
-  const newCase = createCase(readForm(event.currentTarget), estimate);
+  const newCase = createCase(formData, estimate);
   state.cases.unshift(newCase);
   state.activeCase = newCase;
   saveState();
@@ -506,12 +512,13 @@ function buildOfficialApplication(caseData) {
         <tr><th>測試件名稱</th><td>${sample.sampleName}</td><th>測試件數量</th><td>${sample.sampleQty}</td></tr>
         <tr><th>測試件描述</th><td colspan="3">${sample.material || sample.notes || ""}</td></tr>
         <tr><th>剩餘測試件處理</th><td>${sample.sampleReturn || ""}</td><th>報告取件方式</th><td>${sample.reportDelivery || ""}</td></tr>
-        <tr><th>案件類型</th><td>${sample.caseType || "一般件"}</td><th>檢附證件</th><td>${[
+        <tr><th>案件類型</th><td>${sample.caseType || "一般件"}</td><th>首次申請</th><td>${sample.isFirstApplication === "yes" ? "是" : "否"}</td></tr>
+        <tr><th>檢附證件</th><td colspan="3">${[
           ...(sample.attachments || []),
           sample.attachmentOther ? `其他：${sample.attachmentOther}` : "",
         ]
           .filter(Boolean)
-          .join("、")}</td></tr>
+          .join("、") || "非首次申請免附"}</td></tr>
         <tr><th>報告份數</th><td>中文 ${chineseReportCount} 份，英文 ${englishReportCount} 份</td><th>含稅總額</th><td>${money(estimate.total)}</td></tr>
       </table>
     </section>

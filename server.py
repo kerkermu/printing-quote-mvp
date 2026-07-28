@@ -56,6 +56,7 @@ def case_payload_to_template_data(payload: dict) -> dict:
             "sample_return": sample.get("sampleReturn", ""),
             "report_delivery": sample.get("reportDelivery", ""),
             "case_type": sample.get("caseType", "一般件"),
+            "is_first_application": sample.get("isFirstApplication", "no"),
             "attachments": sample.get("attachments", []),
             "attachment_other": sample.get("attachmentOther", ""),
         },
