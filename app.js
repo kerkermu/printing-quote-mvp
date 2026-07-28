@@ -233,14 +233,16 @@ function calculateEstimate() {
   const englishReports = Number($("#quoteForm").elements.englishReports.value || 0);
   const reportFee = extraChineseReports * 100 + englishReports * 200;
   const urgentBase = subtotal + reportFee;
-  const urgent = $("#quoteForm").elements.urgent.checked ? Math.round(urgentBase * 0.5) : 0;
+  const caseType = $("#quoteForm").elements.caseType.value || "一般件";
+  const rushMultiplier = caseType === "急件" ? 1.5 : caseType === "特急件" ? 2 : 1;
+  const rushFee = Math.round(urgentBase * (rushMultiplier - 1));
   const tax = 0;
-  const total = subtotal + reportFee + urgent;
+  const total = subtotal + reportFee + rushFee;
 
   $("#subtotalText").textContent =
     minimumAdjustment > 0 ? `${money(subtotal)}（含最低計費）` : money(subtotal);
   $("#reportFeeText").textContent = money(reportFee);
-  $("#urgentText").textContent = money(urgent);
+  $("#urgentText").textContent = rushFee ? `${money(rushFee)}（${caseType}）` : money(0);
   $("#taxText").textContent = "單價已含稅";
   $("#totalText").textContent = money(total);
 
@@ -251,7 +253,9 @@ function calculateEstimate() {
     extraChineseReports,
     englishReports,
     reportFee,
-    urgent,
+    urgent: rushFee,
+    caseType,
+    rushMultiplier,
     tax,
     total,
     items,
