@@ -605,8 +605,10 @@ function renderDocumentPreview() {
   $$(".doc-tab").forEach((tab) =>
     tab.classList.toggle("active", tab.dataset.doc === state.selectedDoc)
   );
-  if (state.selectedDoc === "application") {
-    renderOfficialPdfPreview();
+  $("#downloadOfficialDocxBtn").textContent =
+    state.selectedDoc === "quote" ? "下載正式報價單 Word" : "下載正式申請書 Word";
+  if (state.selectedDoc === "application" || state.selectedDoc === "quote") {
+    renderOfficialPdfPreview(state.selectedDoc);
     return;
   }
   releasePreviewPdfUrl();
@@ -619,31 +621,34 @@ function releasePreviewPdfUrl() {
   state.previewPdfUrl = null;
 }
 
-async function renderOfficialPdfPreview() {
+async function renderOfficialPdfPreview(docType) {
   const preview = $("#documentPreview");
   releasePreviewPdfUrl();
+  const isQuote = docType === "quote";
+  const label = isQuote ? "正式報價單" : "正式申請書";
+  const endpoint = isQuote ? "/api/preview-quote" : "/api/preview-application";
 
   if (window.location.protocol === "file:") {
-    preview.innerHTML = buildDocument(state.activeCase, "application");
+    preview.innerHTML = buildDocument(state.activeCase, docType);
     return;
   }
 
   preview.innerHTML = `
     <div class="pdf-loading">
-      <strong>正在產生正式申請書預覽</strong>
+      <strong>正在產生${label}預覽</strong>
       <span>系統會先套用官方 Word 模板，再轉成 PDF 顯示。</span>
     </div>
   `;
 
   try {
-    const response = await fetch("/api/preview-application", {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(state.activeCase),
     });
 
     if (!response.ok) {
-      let message = "無法產生正式文件預覽。";
+      let message = `無法產生${label}預覽。`;
       try {
         const error = await response.json();
         message = error.error || message;
@@ -658,18 +663,18 @@ async function renderOfficialPdfPreview() {
     preview.innerHTML = `
       <iframe
         class="pdf-preview-frame"
-        title="正式申請書 PDF 預覽"
+        title="${label} PDF 預覽"
         src="${state.previewPdfUrl}"
       ></iframe>
     `;
   } catch (error) {
     preview.innerHTML = `
       <div class="pdf-error">
-        <strong>正式文件預覽暫時無法顯示</strong>
+        <strong>${label}預覽暫時無法顯示</strong>
         <span>${error.message}</span>
-        <span>仍可使用下方按鈕下載正式申請書 Word。</span>
+        <span>仍可使用下方按鈕下載${label} Word。</span>
       </div>
-      ${buildDocument(state.activeCase, "application")}
+      ${buildDocument(state.activeCase, docType)}
     `;
   }
 }
@@ -689,8 +694,11 @@ function downloadCurrentHtml() {
 
 async function downloadOfficialDocx() {
   if (!state.activeCase) return;
+  const isQuote = state.selectedDoc === "quote";
+  const endpoint = isQuote ? "/api/generate-quote" : "/api/generate-application";
+  const label = isQuote ? "報價單" : "申請書";
   if (window.location.protocol === "file:") {
-    alert("正式 Word 申請書需要從本機後端開啟。請使用 http://127.0.0.1:8765/ 進入系統。");
+    alert(`正式 Word ${label}需要從本機後端開啟。請使用 http://127.0.0.1:8765/ 進入系統。`);
     return;
   }
 
@@ -700,14 +708,14 @@ async function downloadOfficialDocx() {
   button.textContent = "產生中...";
 
   try {
-    const response = await fetch("/api/generate-application", {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(state.activeCase),
     });
 
     if (!response.ok) {
-      let message = "產生正式申請書失敗。";
+      let message = `產生正式${label}失敗。`;
       try {
         const error = await response.json();
         message = error.error || message;
@@ -722,7 +730,7 @@ async function downloadOfficialDocx() {
     const match = disposition.match(/filename\*=UTF-8''(.+)$/);
     const filename = match
       ? decodeURIComponent(match[1])
-      : `${state.activeCase.caseNo}_申請書.docx`;
+      : `${state.activeCase.caseNo}_${label}.docx`;
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from tools.fill_official_application import INK_TEMPLATE, PAPER_TEMPLATE, fill_application
+from tools.fill_quote import QUOTE_TEMPLATE, fill_quote, quote_data_from_payload
 
 
 ROOT = Path(__file__).resolve().parent
@@ -110,16 +111,21 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:
-        if self.path not in ("/api/generate-application", "/api/preview-application"):
+        if self.path not in (
+            "/api/generate-application",
+            "/api/preview-application",
+            "/api/generate-quote",
+            "/api/preview-quote",
+        ):
             self.send_error(404, "Not found")
             return
 
         try:
             length = int(self.headers.get("Content-Length", "0"))
             raw_body = self.rfile.read(length)
-            payload = json.loads(raw_body.decode("utf-8"))
-            output = self.generate_application(payload)
-            if self.path == "/api/preview-application":
+            payload = json.loads(raw_body.decode("utf-8-sig"))
+            output = self.generate_quote(payload) if "quote" in self.path else self.generate_application(payload)
+            if self.path in ("/api/preview-application", "/api/preview-quote"):
                 self.send_pdf(self.convert_docx_to_pdf(output))
             else:
                 self.send_docx(output)
@@ -133,6 +139,14 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
         filename = clean_filename(f"{case_no}_{company}_申請書.docx")
         output = GENERATED_DIR / filename
         return fill_application(data, PAPER_TEMPLATE, INK_TEMPLATE, output)
+
+    def generate_quote(self, payload: dict) -> Path:
+        data = quote_data_from_payload(payload)
+        company = data["customer"].get("companyName", "") or "客戶"
+        case_no = payload.get("caseNo", "CASE")
+        filename = clean_filename(f"{case_no}_{company}_報價單.docx")
+        output = GENERATED_DIR / filename
+        return fill_quote(data, QUOTE_TEMPLATE, output)
 
     def convert_docx_to_pdf(self, docx_path: Path) -> Path:
         GENERATED_DIR.mkdir(parents=True, exist_ok=True)
