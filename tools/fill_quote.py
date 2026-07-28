@@ -99,6 +99,25 @@ def set_cell_text(cell, text: str, size_pt: int = 12) -> None:
     add_mixed_font_text(paragraph, str(text or ""), size_pt)
 
 
+def add_text_with_template_run(paragraph, text: str, template_run=None) -> None:
+    run = paragraph.add_run(str(text or ""))
+    if template_run is not None and template_run._r.rPr is not None:
+        old_r_pr = run._r.rPr
+        if old_r_pr is not None:
+            run._r.remove(old_r_pr)
+        run._r.insert(0, copy.deepcopy(template_run._r.rPr))
+
+
+def set_cell_text_from_template(cell, text: str) -> None:
+    paragraph = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
+    template_run = paragraph.runs[0] if paragraph.runs else None
+    for extra in cell.paragraphs[1:]:
+        cell._tc.remove(extra._p)
+    clear_paragraph_numbering(paragraph)
+    paragraph.clear()
+    add_text_with_template_run(paragraph, str(text or ""), template_run)
+
+
 def keep_cell_on_one_line(cell) -> None:
     tc_pr = cell._tc.get_or_add_tcPr()
     if tc_pr.find(qn("w:noWrap")) is None:
@@ -190,13 +209,15 @@ def set_fee_lines(cell, lines: list[str], size_pt: int = 18) -> None:
     for index, line in enumerate(item_lines):
         paragraph = first_paragraph if index == 0 else cell.add_paragraph()
         clone_paragraph_properties(item_template, paragraph, keep_numbering=True)
+        template_run = item_template.runs[0] if item_template.runs else None
         paragraph.clear()
-        add_mixed_font_text(paragraph, line, size_pt)
+        add_text_with_template_run(paragraph, line, template_run)
 
     paragraph = cell.add_paragraph()
     clone_paragraph_properties(total_template, paragraph, keep_numbering=True)
+    template_run = total_template.runs[0] if total_template.runs else None
     paragraph.clear()
-    add_mixed_font_text(paragraph, total_line, size_pt)
+    add_text_with_template_run(paragraph, total_line, template_run)
 
 
 def case_type_text(case_type: str) -> str:
@@ -237,22 +258,22 @@ def fill_quote(data: dict, template: Path, output: Path) -> Path:
     estimate = data.get("estimate", {})
 
     table = doc.tables[0]
-    set_cell_text(table.rows[0].cells[1], customer.get("companyName", ""), 16)
-    set_cell_text(table.rows[0].cells[3], roc_date(data.get("quote_date")), 16)
-    set_cell_text(table.rows[1].cells[1], customer.get("contactName", ""), 16)
+    set_cell_text_from_template(table.rows[0].cells[1], customer.get("companyName", ""))
+    set_cell_text_from_template(table.rows[0].cells[3], roc_date(data.get("quote_date")))
+    set_cell_text_from_template(table.rows[1].cells[1], customer.get("contactName", ""))
     keep_cell_on_one_line(table.rows[1].cells[3])
-    set_cell_text(table.rows[1].cells[3], no_break_phone(customer.get("phone", "")), 16)
-    set_cell_text(table.rows[2].cells[1], customer.get("address", ""), 16)
-    set_cell_text(table.rows[2].cells[3], customer.get("fax", ""), 16)
+    set_cell_text_from_template(table.rows[1].cells[3], no_break_phone(customer.get("phone", "")))
+    set_cell_text_from_template(table.rows[2].cells[1], customer.get("address", ""))
+    set_cell_text_from_template(table.rows[2].cells[3], customer.get("fax", ""))
 
     sample_name = sample.get("sampleName", "")
     names = item_names(items)
     case_type = sample.get("caseType", "一般件")
     table = doc.tables[1]
-    set_cell_text(table.rows[0].cells[1], f"1種樣本，名稱：{sample_name}", 18)
-    set_cell_text(table.rows[1].cells[2], names, 18)
+    set_cell_text_from_template(table.rows[0].cells[1], f"1種樣本，名稱：{sample_name}")
+    set_cell_text_from_template(table.rows[1].cells[2], names)
     keep_cell_on_one_line(table.rows[2].cells[3])
-    set_cell_text(table.rows[2].cells[3], case_type_text(case_type), 16)
+    set_cell_text_from_template(table.rows[2].cells[3], case_type_text(case_type))
 
     set_fee_lines(
         doc.tables[2].rows[0].cells[0],
@@ -260,7 +281,6 @@ def fill_quote(data: dict, template: Path, output: Path) -> Path:
         18,
     )
 
-    apply_number_font_to_doc(doc)
     doc.save(str(output))
     return output
 
