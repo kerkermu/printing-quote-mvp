@@ -99,34 +99,38 @@ def cell(row, index):
     return row.cells[index]
 
 
-def format_run(run, font_size: float = 10.0) -> None:
+def format_run(run, font_size: float = 12.0) -> None:
     run.font.name = "標楷體"
     run._element.rPr.rFonts.set(qn("w:eastAsia"), "標楷體")
     run.font.size = Pt(font_size)
 
 
-def format_paragraph(paragraph, font_size: float = 10.0) -> None:
+def format_paragraph(paragraph, font_size: float = 12.0) -> None:
     for run in paragraph.runs:
         format_run(run, font_size)
 
 
-def set_cell_text(target_cell, value: str, font_size: float = 10.0) -> None:
+def set_cell_text(target_cell, value: str, font_size: float = 12.0) -> None:
     target_cell.text = value or ""
     for paragraph in target_cell.paragraphs:
         format_paragraph(paragraph, font_size)
 
 
-def replace_text_preserving_runs(doc: Document, replacements: dict[str, str]) -> None:
+def replace_text_preserving_runs(
+    doc: Document, replacements: dict[str, str], format_replacement: bool = False
+) -> None:
     for paragraph in doc.paragraphs:
-        replace_in_paragraph(paragraph, replacements)
+        replace_in_paragraph(paragraph, replacements, format_replacement=format_replacement)
     for table in doc.tables:
         for row in table.rows:
             for target_cell in row.cells:
                 for paragraph in target_cell.paragraphs:
-                    replace_in_paragraph(paragraph, replacements)
+                    replace_in_paragraph(paragraph, replacements, format_replacement=format_replacement)
 
 
-def replace_in_paragraph(paragraph, replacements: dict[str, str]) -> None:
+def replace_in_paragraph(
+    paragraph, replacements: dict[str, str], format_replacement: bool = False
+) -> None:
     if not paragraph.runs:
         return
     text = "".join(run.text for run in paragraph.runs)
@@ -136,7 +140,8 @@ def replace_in_paragraph(paragraph, replacements: dict[str, str]) -> None:
     if new_text == text:
         return
     paragraph.runs[0].text = new_text
-    format_run(paragraph.runs[0])
+    if format_replacement:
+        format_run(paragraph.runs[0])
     for run in paragraph.runs[1:]:
         run.text = ""
 
@@ -173,7 +178,7 @@ def fill_common_fields(doc: Document, data: dict) -> None:
         f"測試件數量：{sample.get('quantity', '')}\n"
         f"測試件狀態描述：{sample.get('description', '')}"
     )
-    set_cell_text(cell(table.rows[5], 1), sample_text, font_size=9.5)
+    set_cell_text(cell(table.rows[5], 1), sample_text)
 
     sample_return = sample.get("sample_return")
     report_delivery = sample.get("report_delivery")
