@@ -14,6 +14,7 @@ from datetime import date
 from pathlib import Path
 
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt
@@ -46,8 +47,8 @@ PAPER_ITEM_LABELS = {
     "paper-water-resistance": "14.抗水度",
     "paper-tear": "15.撕裂強度",
     "paper-tensile": "16.抗張強度",
-    "paper-wax-pick": "17.表面強度蠟棒",
-    "paper-igt": "18.表面強度IGT展色",
+    "paper-wax-pick": "17.表面強度(蠟棒)",
+    "paper-igt": "18.表面強度(IGT展色)",
     "paper-curl": "19.捲曲度",
     "paper-absorbency": "20.吸水性",
     "paper-ink-absorbency": "21.吸墨性",
@@ -145,9 +146,13 @@ def format_paragraph(paragraph, font_size: float = 12.0) -> None:
         format_run(run, font_size)
 
 
-def set_cell_text(target_cell, value: str, font_size: float = 12.0) -> None:
+def set_cell_text(
+    target_cell, value: str, font_size: float = 12.0, alignment=None
+) -> None:
     target_cell.text = value or ""
     for paragraph in target_cell.paragraphs:
+        if alignment is not None:
+            paragraph.alignment = alignment
         format_paragraph(paragraph, font_size)
 
 
@@ -155,6 +160,13 @@ def keep_cell_on_one_line(target_cell) -> None:
     tc_pr = target_cell._tc.get_or_add_tcPr()
     if tc_pr.find(qn("w:noWrap")) is None:
         tc_pr.append(OxmlElement("w:noWrap"))
+
+
+def set_cell_width(target_cell, width: int) -> None:
+    tc_w = target_cell._tc.get_or_add_tcPr().tcW
+    if tc_w is not None:
+        tc_w.w = width
+        tc_w.type = "dxa"
 
 
 def no_break(value: str) -> str:
@@ -236,6 +248,16 @@ def mark_checked_boxes(doc: Document, selected_item_ids: list[str], label_map: d
     replace_text_preserving_runs(doc, replacements)
 
 
+def normalize_paper_item_labels(doc: Document) -> None:
+    replace_text_preserving_runs(
+        doc,
+        {
+            "17.表面強度蠟棒": "17.表面強度(蠟棒)",
+            "18.表面強度IGT展色": "18.表面強度(IGT展色)",
+        },
+    )
+
+
 def fill_common_fields(doc: Document, data: dict) -> None:
     table = doc.tables[0]
     customer = data.get("customer", {})
@@ -244,17 +266,26 @@ def fill_common_fields(doc: Document, data: dict) -> None:
 
     set_cell_text(cell(table.rows[0], 2), customer.get("company_name", ""))
     keep_cell_on_one_line(cell(table.rows[0], 11))
-    set_cell_text(cell(table.rows[0], 11), roc_date(application_date), 11)
+    set_cell_text(cell(table.rows[0], 11), roc_date(application_date), 11, WD_ALIGN_PARAGRAPH.CENTER)
     set_cell_text(cell(table.rows[1], 2), customer.get("invoice_address") or customer.get("address", ""))
-    set_cell_text(cell(table.rows[1], 11), customer.get("tax_id", ""))
+    set_cell_text(cell(table.rows[1], 11), customer.get("tax_id", ""), alignment=WD_ALIGN_PARAGRAPH.CENTER)
     set_cell_text(cell(table.rows[2], 2), customer.get("address", ""))
-    set_cell_text(cell(table.rows[2], 11), customer.get("contact_name", ""))
+    set_cell_text(cell(table.rows[2], 11), customer.get("contact_name", ""), alignment=WD_ALIGN_PARAGRAPH.CENTER)
     set_cell_text(cell(table.rows[3], 2), customer.get("email", ""))
-    set_cell_text(cell(table.rows[3], 11), customer.get("job_title", ""))
+    set_cell_text(cell(table.rows[3], 11), customer.get("job_title", ""), alignment=WD_ALIGN_PARAGRAPH.CENTER)
+    set_cell_width(cell(table.rows[4], 2), 2300)
+    set_cell_width(cell(table.rows[4], 4), 1200)
+    set_cell_width(cell(table.rows[4], 5), 1600)
+    set_cell_width(cell(table.rows[4], 9), 1350)
     keep_cell_on_one_line(cell(table.rows[4], 2))
-    set_cell_text(cell(table.rows[4], 2), no_break_phone(customer.get("phone", "")), 9)
-    set_cell_text(cell(table.rows[4], 5), customer.get("fax", ""))
-    set_cell_text(cell(table.rows[4], 11), customer.get("mobile", ""))
+    set_cell_text(
+        cell(table.rows[4], 2),
+        no_break_phone(customer.get("phone", "")),
+        11,
+        WD_ALIGN_PARAGRAPH.CENTER,
+    )
+    set_cell_text(cell(table.rows[4], 5), customer.get("fax", ""), 11, WD_ALIGN_PARAGRAPH.CENTER)
+    set_cell_text(cell(table.rows[4], 11), customer.get("mobile", ""), alignment=WD_ALIGN_PARAGRAPH.CENTER)
 
     fill_sample_cell(
         cell(table.rows[5], 1),
@@ -360,6 +391,8 @@ def fill_application(data: dict, paper_template: Path, ink_template: Path, outpu
 
     doc = Document(str(output))
     fill_common_fields(doc, data)
+    if label_map is PAPER_ITEM_LABELS:
+        normalize_paper_item_labels(doc)
     mark_checked_boxes(doc, data.get("selected_item_ids", []), label_map)
     fill_note_total(doc, data.get("total_with_tax"))
     doc.save(str(output))
