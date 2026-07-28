@@ -144,6 +144,28 @@ def fee_lines(
     return lines
 
 
+def clear_paragraph_properties(paragraph) -> None:
+    p_pr = paragraph._p.pPr
+    if p_pr is not None:
+        paragraph._p.remove(p_pr)
+
+
+def set_fee_lines(cell, lines: list[str], size_pt: int = 12) -> None:
+    if not lines:
+        return
+
+    first_paragraph = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
+
+    for extra in cell.paragraphs[1:]:
+        cell._tc.remove(extra._p)
+
+    for index, line in enumerate(lines):
+        paragraph = first_paragraph if index == 0 else cell.add_paragraph()
+        clear_paragraph_properties(paragraph)
+        paragraph.clear()
+        add_mixed_font_text(paragraph, line, size_pt)
+
+
 def case_type_text(case_type: str) -> str:
     if "7~14" in case_type:
         return case_type
@@ -197,7 +219,7 @@ def fill_quote(data: dict, template: Path, output: Path) -> Path:
     set_cell_text(table.rows[1].cells[2], names, 18)
     set_cell_text(table.rows[2].cells[3], case_type_text(case_type), 18)
 
-    set_cell_lines(
+    set_fee_lines(
         doc.tables[2].rows[0].cells[0],
         fee_lines(items, data.get("total", 0), estimate, case_type),
         12,
