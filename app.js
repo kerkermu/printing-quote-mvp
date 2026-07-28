@@ -80,7 +80,7 @@ function setView(viewName) {
 
   const titles = {
     login: "客戶登入",
-    quote: "新增檢測詢價",
+    quote: "印刷適性實驗室線上申請與報價",
     cases: "我的案件",
     admin: "內部後台",
     settings: "帳戶資料",

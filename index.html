@@ -44,17 +44,55 @@
       <main class="main">
         <header class="topbar">
           <div>
-            <p class="eyebrow">線上服務</p>
-            <h2 id="viewTitle">檢測線上報價暨文件產生系統</h2>
+            <p class="eyebrow">首頁 / 服務項目 / 印刷適性實驗室</p>
+            <h2 id="viewTitle">印刷適性實驗室線上申請與報價</h2>
           </div>
-          <button class="ghost-button" id="resetDemoBtn" type="button">重置 demo</button>
+          <div class="utility-actions">
+            <button class="ghost-button small-button" type="button">列印</button>
+            <button class="ghost-button small-button" type="button">Email</button>
+            <button class="ghost-button" id="resetDemoBtn" type="button">重置 demo</button>
+          </div>
         </header>
+
+        <section class="service-hero" aria-labelledby="serviceTitle">
+          <div>
+            <p class="eyebrow">Printability Laboratory</p>
+            <h2 id="serviceTitle">印刷適性實驗室</h2>
+            <p>
+              提供紙張、油墨、印刷品與包裝材料相關檢測服務。此 MVP 將原本申請書、報價單與內部簽呈流程線上化，協助客戶先完成資料填寫並產生回簽文件。
+            </p>
+          </div>
+          <div class="service-contact">
+            <strong>服務窗口</strong>
+            <span>印研中心檢測服務承辦</span>
+            <span>02-2999-0016</span>
+          </div>
+        </section>
+
+        <section class="service-links" aria-label="服務流程">
+          <article>
+            <strong>1. 線上填寫</strong>
+            <span>登入後帶入公司資料，填寫樣品與需求。</span>
+          </article>
+          <article>
+            <strong>2. 檢測項目</strong>
+            <span>選擇印刷適性、紙張物性與色彩相關測試。</span>
+          </article>
+          <article>
+            <strong>3. 文件產生</strong>
+            <span>產生申請書、報價單與內部簽呈。</span>
+          </article>
+          <article>
+            <strong>4. 回簽開案</strong>
+            <span>客戶簽名蓋章後回傳，中心確認後開案。</span>
+          </article>
+        </section>
 
         <section class="view active" id="loginView" aria-labelledby="loginTitle">
           <div class="intro">
             <div>
               <p class="eyebrow">MVP demo</p>
-              <h2 id="loginTitle">檢測申請、報價與簽呈一次產生</h2>
+              <h2 id="loginTitle">從服務頁進入線上申請流程</h2>
               <p>
                 這個版本先展示核心流程：客戶登入後自動帶入公司資料，填寫樣品與檢測項目後，系統產生申請書、報價單與內部簽呈。
               </p>
@@ -169,8 +207,8 @@
             <section class="panel">
               <div class="section-heading">
                 <div>
-                  <p class="eyebrow">Tests</p>
-                  <h3>檢測項目</h3>
+                  <p class="eyebrow">Printability Tests</p>
+                  <h3>印刷適性檢測項目</h3>
                 </div>
                 <label class="toggle">
                   <input type="checkbox" name="urgent" />
