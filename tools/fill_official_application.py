@@ -24,6 +24,7 @@ DEFAULT_TEMPLATE_DIR = Path(
 
 PAPER_TEMPLATE = DEFAULT_TEMPLATE_DIR / "紙張適性檢測申請書_11406.docx"
 INK_TEMPLATE = DEFAULT_TEMPLATE_DIR / "印刷品及油墨適性檢測申請書_11406.docx"
+NUMBER_FONT = "Times New Roman"
 
 
 PAPER_ITEM_LABELS = {
@@ -103,6 +104,27 @@ def format_run(run, font_size: float = 12.0) -> None:
     run.font.name = "標楷體"
     run._element.rPr.rFonts.set(qn("w:eastAsia"), "標楷體")
     run.font.size = Pt(font_size)
+    apply_number_font(run)
+
+
+def apply_number_font(run) -> None:
+    if not any(char.isdigit() for char in run.text):
+        return
+    run._element.rPr.rFonts.set(qn("w:ascii"), NUMBER_FONT)
+    run._element.rPr.rFonts.set(qn("w:hAnsi"), NUMBER_FONT)
+    run._element.rPr.rFonts.set(qn("w:cs"), NUMBER_FONT)
+
+
+def apply_number_font_to_doc(doc: Document) -> None:
+    for paragraph in doc.paragraphs:
+        for run in paragraph.runs:
+            apply_number_font(run)
+    for table in doc.tables:
+        for row in table.rows:
+            for target_cell in row.cells:
+                for paragraph in target_cell.paragraphs:
+                    for run in paragraph.runs:
+                        apply_number_font(run)
 
 
 def format_paragraph(paragraph, font_size: float = 12.0) -> None:
@@ -252,6 +274,7 @@ def fill_application(data: dict, paper_template: Path, ink_template: Path, outpu
     fill_common_fields(doc, data)
     mark_checked_boxes(doc, data.get("selected_item_ids", []), label_map)
     fill_note_total(doc, data.get("total_with_tax"))
+    apply_number_font_to_doc(doc)
     doc.save(str(output))
     return output
 
