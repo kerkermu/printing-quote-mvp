@@ -350,17 +350,24 @@ def fill_sample_cell(target_cell, name: str, quantity: str, description: str) ->
 
 def replace_report_copy_lines(table, chinese_report_count: int, english_report_count: int) -> None:
     chinese_paragraph = cell(table.rows[8], 1).paragraphs[0]
+    template_runs = list(chinese_paragraph.runs)
     chinese_paragraph.clear()
-    add_formatted_run(chinese_paragraph, "■ 中文報告  ")
-    add_formatted_run(chinese_paragraph, str(chinese_report_count), underline=True)
-    add_formatted_run(chinese_paragraph, "  份")
+    add_text_like(chinese_paragraph, "■", template_runs[0] if len(template_runs) > 0 else None)
+    add_text_like(chinese_paragraph, " 中文報告", template_runs[2] if len(template_runs) > 2 else None)
+    add_text_like(chinese_paragraph, "  ", template_runs[3] if len(template_runs) > 3 else None)
+    add_text_like(chinese_paragraph, str(chinese_report_count), template_runs[4] if len(template_runs) > 4 else None)
+    add_text_like(chinese_paragraph, "  ", template_runs[5] if len(template_runs) > 5 else None)
+    add_text_like(chinese_paragraph, "份", template_runs[6] if len(template_runs) > 6 else None)
 
     if english_report_count > 0:
         english_paragraph = cell(table.rows[8], 7).paragraphs[0]
+        template_runs = list(english_paragraph.runs)
         english_paragraph.clear()
-        add_formatted_run(english_paragraph, "■ 英文報告  ")
-        add_formatted_run(english_paragraph, str(english_report_count), underline=True)
-        add_formatted_run(english_paragraph, "  份")
+        add_text_like(english_paragraph, "■ 英文報告", template_runs[0] if len(template_runs) > 0 else None)
+        add_text_like(english_paragraph, "  ", template_runs[1] if len(template_runs) > 1 else None)
+        add_text_like(english_paragraph, str(english_report_count), template_runs[1] if len(template_runs) > 1 else None)
+        add_text_like(english_paragraph, "  ", template_runs[1] if len(template_runs) > 1 else None)
+        add_text_like(english_paragraph, "份", template_runs[-1] if template_runs else None)
 
 
 def fill_note_total(doc: Document, total: int | str | None) -> None:
