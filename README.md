@@ -30,6 +30,18 @@
 5. 加入 Email 自動寄送與內部同仁通知。
 6. 後台加入案件狀態、報價調整、文件版本紀錄與操作紀錄。
 
+## 正式申請書輸出
+
+正式申請書必須使用原始 Word 模板，不能用 HTML 重新排版。`tools/fill_official_application.py` 會複製官方 `.docx` 模板，只填入欄位與勾選項目，保留原本版面、表格、字型與頁面設定。
+
+範例：
+
+```powershell
+& 'C:\Users\user\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' tools\fill_official_application.py data\sample_case_paper.json --out generated_forms\sample_paper_application.docx
+```
+
+正式部署時，請將官方模板放在伺服器私有目錄，不要放在公開網站目錄。
+
 ## 本機開啟
 
 直接用瀏覽器開啟 `index.html` 即可。

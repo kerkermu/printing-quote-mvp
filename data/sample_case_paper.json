@@ -1,0 +1,27 @@
+{
+  "application_date": "2026-07-28",
+  "total_with_tax": 3150,
+  "customer": {
+    "company_name": "肯定實業股份有限公司",
+    "tax_id": "12345678",
+    "invoice_address": "新北市中和區建一路 99 號",
+    "address": "新北市中和區建一路 99 號",
+    "contact_name": "王小姐",
+    "job_title": "專員",
+    "email": "customer@example.com",
+    "phone": "02-2345-6789",
+    "fax": "",
+    "mobile": ""
+  },
+  "sample": {
+    "name": "銅版紙樣品",
+    "quantity": "10 張",
+    "description": "紙張 157 gsm，請協助確認紙張印刷適性與表面性能。",
+    "report_language": "中文"
+  },
+  "selected_item_ids": [
+    "paper-weight",
+    "paper-thickness",
+    "paper-gloss"
+  ]
+}
