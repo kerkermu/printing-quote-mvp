@@ -196,6 +196,12 @@ def fill_note_total(doc: Document, total: int | str | None) -> None:
 
 
 def choose_template(data: dict, paper_template: Path, ink_template: Path) -> tuple[Path, dict[str, str]]:
+    service_type = data.get("service_type")
+    if service_type == "paper":
+        return paper_template, PAPER_ITEM_LABELS
+    if service_type == "ink":
+        return ink_template, INK_ITEM_LABELS
+
     selected = data.get("selected_item_ids", [])
     if selected and all(item_id.startswith("paper-") for item_id in selected):
         return paper_template, PAPER_ITEM_LABELS

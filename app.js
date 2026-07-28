@@ -1,10 +1,9 @@
 const categories = [
-  { id: "all", name: "全部檢測項目" },
-  { id: "paper", name: "紙張適性檢測" },
-  { id: "offset-ink", name: "平版油墨基本特性" },
-  { id: "printed-ink", name: "印刷成品印墨適性" },
-  { id: "fountain", name: "平版印刷水槽液" },
-  { id: "other", name: "其他服務" },
+  { id: "paper", serviceType: "paper", name: "紙張適性檢測" },
+  { id: "offset-ink", serviceType: "ink", name: "平版油墨基本特性" },
+  { id: "printed-ink", serviceType: "ink", name: "印刷成品印墨適性" },
+  { id: "fountain", serviceType: "ink", name: "平版印刷水槽液" },
+  { id: "other", serviceType: "ink", name: "其他服務" },
 ];
 
 const testItems = [
@@ -184,15 +183,22 @@ function fillProfileForm() {
 }
 
 function renderCategoryFilter() {
-  $("#categoryFilter").innerHTML = categories
+  const serviceType = $("#serviceType")?.value || "paper";
+  const availableCategories = categories.filter((category) => category.serviceType === serviceType);
+  $("#categoryFilter").innerHTML = availableCategories
     .map((category) => `<option value="${category.id}">${category.name}</option>`)
     .join("");
 }
 
 function renderTests() {
   const category = $("#categoryFilter")?.value || "all";
-  const visibleItems =
-    category === "all" ? testItems : testItems.filter((item) => item.category === category);
+  const serviceType = $("#serviceType")?.value || "paper";
+  const allowedCategories = categories
+    .filter((item) => item.serviceType === serviceType)
+    .map((item) => item.id);
+  const visibleItems = testItems.filter(
+    (item) => allowedCategories.includes(item.category) && item.category === category
+  );
 
   $("#testList").innerHTML = visibleItems
     .map(
@@ -243,6 +249,7 @@ function createCase(formData, estimate) {
     id: crypto.randomUUID(),
     caseNo,
     status: "待確認",
+    serviceType: formData.serviceType,
     createdAt: now.toISOString(),
     customer: {
       companyName: formData.companyName,
@@ -361,6 +368,7 @@ function hasSelected(caseData, itemId) {
 }
 
 function selectedCategory(caseData) {
+  if (caseData.serviceType) return caseData.serviceType;
   const selected = new Set(caseData.estimate.items.map((item) => item.category));
   return selected.size === 1 && selected.has("paper") ? "paper" : "ink";
 }
@@ -642,6 +650,11 @@ function bindEvents() {
   $("#quoteForm").addEventListener("input", calculateEstimate);
   $("#quoteForm").addEventListener("change", calculateEstimate);
   $("#quoteForm").addEventListener("submit", submitQuote);
+  $("#serviceType").addEventListener("change", () => {
+    renderCategoryFilter();
+    renderTests();
+    calculateEstimate();
+  });
   $("#categoryFilter").addEventListener("change", () => {
     renderTests();
     calculateEstimate();

@@ -33,6 +33,7 @@ def case_payload_to_template_data(payload: dict) -> dict:
     return {
         "application_date": date.today().isoformat(),
         "total_with_tax": estimate.get("total", ""),
+        "service_type": payload.get("serviceType", ""),
         "customer": {
             "company_name": customer.get("companyName", ""),
             "tax_id": customer.get("taxId", ""),
