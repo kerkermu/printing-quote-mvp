@@ -7,12 +7,14 @@ copying the official Word template and writing values into its existing cells.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import shutil
 from datetime import date
 from pathlib import Path
 
 from docx import Document
+from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt
 
@@ -149,6 +151,45 @@ def set_cell_text(target_cell, value: str, font_size: float = 12.0) -> None:
         format_paragraph(paragraph, font_size)
 
 
+def keep_cell_on_one_line(target_cell) -> None:
+    tc_pr = target_cell._tc.get_or_add_tcPr()
+    if tc_pr.find(qn("w:noWrap")) is None:
+        tc_pr.append(OxmlElement("w:noWrap"))
+
+
+def no_break(value: str) -> str:
+    return str(value or "").replace(" ", "\u00a0")
+
+
+def no_break_phone(value: str) -> str:
+    return no_break(value)
+
+
+def clone_run_properties(source_run, target_run) -> None:
+    if source_run is None or source_run._r.rPr is None:
+        return
+    old_r_pr = target_run._r.rPr
+    if old_r_pr is not None:
+        target_run._r.remove(old_r_pr)
+    target_run._r.insert(0, copy.deepcopy(source_run._r.rPr))
+
+
+def add_text_like(paragraph, text: str, source_run=None):
+    run = paragraph.add_run(str(text or ""))
+    clone_run_properties(source_run, run)
+    apply_number_font(run)
+    return run
+
+
+def set_paragraph_text_like(paragraph, text: str, source_run=None, bold: bool | None = None) -> None:
+    if source_run is None and paragraph.runs:
+        source_run = paragraph.runs[0]
+    paragraph.clear()
+    run = add_text_like(paragraph, text, source_run)
+    if bold is not None:
+        run.bold = bold
+
+
 def add_formatted_run(paragraph, text: str, font_size: float = 12.0, underline: bool = False):
     run = paragraph.add_run(text)
     format_run(run, font_size)
@@ -202,23 +243,25 @@ def fill_common_fields(doc: Document, data: dict) -> None:
     application_date = data.get("application_date") or date.today().isoformat()
 
     set_cell_text(cell(table.rows[0], 2), customer.get("company_name", ""))
-    set_cell_text(cell(table.rows[0], 11), roc_date(application_date))
+    keep_cell_on_one_line(cell(table.rows[0], 11))
+    set_cell_text(cell(table.rows[0], 11), roc_date(application_date), 11)
     set_cell_text(cell(table.rows[1], 2), customer.get("invoice_address") or customer.get("address", ""))
     set_cell_text(cell(table.rows[1], 11), customer.get("tax_id", ""))
     set_cell_text(cell(table.rows[2], 2), customer.get("address", ""))
     set_cell_text(cell(table.rows[2], 11), customer.get("contact_name", ""))
     set_cell_text(cell(table.rows[3], 2), customer.get("email", ""))
     set_cell_text(cell(table.rows[3], 11), customer.get("job_title", ""))
-    set_cell_text(cell(table.rows[4], 2), customer.get("phone", ""))
+    keep_cell_on_one_line(cell(table.rows[4], 2))
+    set_cell_text(cell(table.rows[4], 2), no_break_phone(customer.get("phone", "")), 9)
     set_cell_text(cell(table.rows[4], 5), customer.get("fax", ""))
     set_cell_text(cell(table.rows[4], 11), customer.get("mobile", ""))
 
-    sample_text = (
-        f"測試件名稱：{sample.get('name', '')}　"
-        f"測試件數量：{sample.get('quantity', '')}\n"
-        f"測試件狀態描述：{sample.get('description', '')}"
+    fill_sample_cell(
+        cell(table.rows[5], 1),
+        sample.get("name", ""),
+        sample.get("quantity", ""),
+        sample.get("description", ""),
     )
-    set_cell_text(cell(table.rows[5], 1), sample_text)
 
     sample_return = sample.get("sample_return")
     report_delivery = sample.get("report_delivery")
@@ -254,28 +297,39 @@ def fill_common_fields(doc: Document, data: dict) -> None:
 
     chinese_report_count = 1 + int(sample.get("extra_chinese_reports") or 0)
     english_report_count = int(sample.get("english_reports") or 0)
-    replace_report_copy_lines(doc, chinese_report_count, english_report_count)
+    replace_report_copy_lines(table, chinese_report_count, english_report_count)
 
 
-def replace_report_copy_lines(
-    doc: Document, chinese_report_count: int, english_report_count: int
-) -> None:
-    for table in doc.tables:
-        for row in table.rows:
-            for target_cell in row.cells:
-                for paragraph in target_cell.paragraphs:
-                    text = paragraph.text
-                    if "中文報告" in text:
-                        paragraph.clear()
-                        add_formatted_run(paragraph, "■ 中文報告  ")
-                        add_formatted_run(paragraph, str(chinese_report_count), underline=True)
-                        add_formatted_run(paragraph, "  份")
-                    elif "英文報告" in text:
-                        paragraph.clear()
-                        checkbox = "■" if english_report_count > 0 else "□"
-                        add_formatted_run(paragraph, f"{checkbox} 英文報告  ")
-                        add_formatted_run(paragraph, str(english_report_count), underline=True)
-                        add_formatted_run(paragraph, "  份")
+def fill_sample_cell(target_cell, name: str, quantity: str, description: str) -> None:
+    while len(target_cell.paragraphs) < 4:
+        target_cell.add_paragraph()
+
+    p0, p1, p2, p3 = target_cell.paragraphs[:4]
+    template_run0 = p0.runs[0] if p0.runs else None
+    template_run2 = p2.runs[0] if p2.runs else template_run0
+    set_paragraph_text_like(
+        p0,
+        f"測試件名稱：                          測試件數量：{quantity or ''}",
+        template_run0,
+    )
+    set_paragraph_text_like(p1, name or "", template_run0, bold=True)
+    set_paragraph_text_like(p2, f"測試件狀態描述：{description or ''}", template_run2)
+    set_paragraph_text_like(p3, "", template_run0)
+
+
+def replace_report_copy_lines(table, chinese_report_count: int, english_report_count: int) -> None:
+    chinese_paragraph = cell(table.rows[8], 1).paragraphs[0]
+    chinese_paragraph.clear()
+    add_formatted_run(chinese_paragraph, "■ 中文報告  ")
+    add_formatted_run(chinese_paragraph, str(chinese_report_count), underline=True)
+    add_formatted_run(chinese_paragraph, "  份")
+
+    if english_report_count > 0:
+        english_paragraph = cell(table.rows[8], 7).paragraphs[0]
+        english_paragraph.clear()
+        add_formatted_run(english_paragraph, "■ 英文報告  ")
+        add_formatted_run(english_paragraph, str(english_report_count), underline=True)
+        add_formatted_run(english_paragraph, "  份")
 
 
 def fill_note_total(doc: Document, total: int | str | None) -> None:
@@ -308,7 +362,6 @@ def fill_application(data: dict, paper_template: Path, ink_template: Path, outpu
     fill_common_fields(doc, data)
     mark_checked_boxes(doc, data.get("selected_item_ids", []), label_map)
     fill_note_total(doc, data.get("total_with_tax"))
-    apply_number_font_to_doc(doc)
     doc.save(str(output))
     return output
 
