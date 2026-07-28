@@ -121,8 +121,24 @@
               <input required name="phone" value="02-2345-6789" />
             </label>
             <label>
+              行動電話
+              <input name="mobile" value="" />
+            </label>
+            <label>
+              職稱
+              <input name="jobTitle" value="" />
+            </label>
+            <label>
               公司地址
               <input required name="address" value="新北市中和區建一路 99 號" />
+            </label>
+            <label>
+              發票地址
+              <input required name="invoiceAddress" value="新北市中和區建一路 99 號" />
+            </label>
+            <label>
+              傳真
+              <input name="fax" value="" />
             </label>
             <button class="primary-button full-row" type="submit">登入並開始詢價</button>
           </form>
@@ -159,12 +175,32 @@
                   <input required name="contactName" />
                 </label>
                 <label>
+                  職稱
+                  <input name="jobTitle" />
+                </label>
+                <label>
                   Email
                   <input required name="email" type="email" />
                 </label>
-                <label class="full-row">
+                <label>
+                  電話
+                  <input required name="phone" />
+                </label>
+                <label>
+                  傳真
+                  <input name="fax" />
+                </label>
+                <label>
+                  行動電話
+                  <input name="mobile" />
+                </label>
+                <label>
                   公司地址
                   <input required name="address" />
+                </label>
+                <label>
+                  發票地址
+                  <input required name="invoiceAddress" />
                 </label>
               </div>
             </section>
@@ -173,21 +209,35 @@
               <div class="section-heading">
                 <div>
                   <p class="eyebrow">Sample</p>
-                  <h3>樣品資料</h3>
+                  <h3>測試件資料</h3>
                 </div>
               </div>
               <div class="form-grid">
                 <label>
-                  樣品名稱
+                  測試件名稱
                   <input required name="sampleName" value="銅版紙樣品" />
                 </label>
                 <label>
-                  樣品數量
+                  測試件數量
                   <input required name="sampleQty" value="10 張" />
                 </label>
                 <label>
-                  材質/規格
+                  測試件狀態描述
                   <input name="material" value="紙張 157 gsm" />
+                </label>
+                <label>
+                  剩餘測試件處理方式
+                  <select name="sampleReturn">
+                    <option>取回</option>
+                    <option>不取回</option>
+                  </select>
+                </label>
+                <label>
+                  正式紙本報告取件方式
+                  <select name="reportDelivery">
+                    <option>自取</option>
+                    <option>郵寄</option>
+                  </select>
                 </label>
                 <label>
                   報告語言
@@ -198,7 +248,7 @@
                   </select>
                 </label>
                 <label class="full-row">
-                  備註
+                  其他說明
                   <textarea name="notes" rows="3">請協助確認紙張印刷適性與表面性能。</textarea>
                 </label>
               </div>
@@ -307,12 +357,28 @@
               <input required name="contactName" />
             </label>
             <label>
+              職稱
+              <input name="jobTitle" />
+            </label>
+            <label>
               電話
               <input required name="phone" />
             </label>
             <label>
-              地址
+              傳真
+              <input name="fax" />
+            </label>
+            <label>
+              行動電話
+              <input name="mobile" />
+            </label>
+            <label>
+              公司地址
               <input required name="address" />
+            </label>
+            <label>
+              發票地址
+              <input required name="invoiceAddress" />
             </label>
             <button class="primary-button full-row" type="submit">更新帳戶資料</button>
           </form>

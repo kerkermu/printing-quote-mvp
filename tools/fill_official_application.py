@@ -158,6 +158,21 @@ def fill_common_fields(doc: Document, data: dict) -> None:
     )
     set_cell_text(cell(table.rows[5], 1), sample_text)
 
+    sample_return = sample.get("sample_return")
+    report_delivery = sample.get("report_delivery")
+    if sample_return:
+        return_text = (
+            f"剩餘測試件處理方式：{'■' if sample_return == '取回' else '□'}取回 "
+            f"{'■' if sample_return == '不取回' else '□'}不取回"
+        )
+        set_cell_text(cell(table.rows[6], 1), return_text)
+    if report_delivery:
+        delivery_text = (
+            f"正式紙本報告取件方式：{'■' if report_delivery == '自取' else '□'}自取 "
+            f"{'■' if report_delivery == '郵寄' else '□'}郵寄"
+        )
+        set_cell_text(cell(table.rows[6], 7), delivery_text)
+
     report_language = sample.get("report_language", "中文")
     replacements = {}
     if "中文" in report_language:

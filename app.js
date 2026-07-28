@@ -171,6 +171,11 @@ function fillQuoteCustomer() {
     contactName: state.user.contactName,
     email: state.user.email,
     address: state.user.address,
+    invoiceAddress: state.user.invoiceAddress || state.user.address,
+    phone: state.user.phone || "",
+    fax: state.user.fax || "",
+    mobile: state.user.mobile || "",
+    jobTitle: state.user.jobTitle || "",
   });
 }
 
@@ -245,13 +250,19 @@ function createCase(formData, estimate) {
       contactName: formData.contactName,
       email: formData.email,
       address: formData.address,
-      phone: state.user?.phone || "",
+      invoiceAddress: formData.invoiceAddress,
+      phone: formData.phone || state.user?.phone || "",
+      fax: formData.fax || state.user?.fax || "",
+      mobile: formData.mobile || state.user?.mobile || "",
+      jobTitle: formData.jobTitle || state.user?.jobTitle || "",
     },
     sample: {
       sampleName: formData.sampleName,
       sampleQty: formData.sampleQty,
       material: formData.material,
       reportLang: formData.reportLang,
+      sampleReturn: formData.sampleReturn,
+      reportDelivery: formData.reportDelivery,
       notes: formData.notes,
     },
     estimate,
@@ -449,11 +460,14 @@ function buildOfficialApplication(caseData) {
       <h3>將帶入正式申請書的資料</h3>
       <table class="doc-table">
         <tr><th>廠商名稱</th><td>${customer.companyName}</td><th>申請日期</th><td>${date}</td></tr>
-        <tr><th>發票地址</th><td>${customer.address}</td><th>統一編號</th><td>${customer.taxId}</td></tr>
+        <tr><th>發票地址</th><td>${customer.invoiceAddress || customer.address}</td><th>統一編號</th><td>${customer.taxId}</td></tr>
         <tr><th>公司地址</th><td>${customer.address}</td><th>聯絡人</th><td>${customer.contactName}</td></tr>
-        <tr><th>電子郵件</th><td>${customer.email}</td><th>電話</th><td>${customer.phone || ""}</td></tr>
+        <tr><th>電子郵件</th><td>${customer.email}</td><th>職稱</th><td>${customer.jobTitle || ""}</td></tr>
+        <tr><th>電話</th><td>${customer.phone || ""}</td><th>傳真</th><td>${customer.fax || ""}</td></tr>
+        <tr><th>行動電話</th><td>${customer.mobile || ""}</td><th></th><td></td></tr>
         <tr><th>測試件名稱</th><td>${sample.sampleName}</td><th>測試件數量</th><td>${sample.sampleQty}</td></tr>
         <tr><th>測試件描述</th><td colspan="3">${sample.material || sample.notes || ""}</td></tr>
+        <tr><th>剩餘測試件處理</th><td>${sample.sampleReturn || ""}</td><th>報告取件方式</th><td>${sample.reportDelivery || ""}</td></tr>
         <tr><th>報告語言</th><td>${reportLang}</td><th>含稅總額</th><td>${money(estimate.total)}</td></tr>
       </table>
     </section>
