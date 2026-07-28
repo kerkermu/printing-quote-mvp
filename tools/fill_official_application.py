@@ -13,6 +13,8 @@ from datetime import date
 from pathlib import Path
 
 from docx import Document
+from docx.oxml.ns import qn
+from docx.shared import Pt
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -97,8 +99,21 @@ def cell(row, index):
     return row.cells[index]
 
 
-def set_cell_text(target_cell, value: str) -> None:
+def format_run(run, font_size: float = 10.0) -> None:
+    run.font.name = "標楷體"
+    run._element.rPr.rFonts.set(qn("w:eastAsia"), "標楷體")
+    run.font.size = Pt(font_size)
+
+
+def format_paragraph(paragraph, font_size: float = 10.0) -> None:
+    for run in paragraph.runs:
+        format_run(run, font_size)
+
+
+def set_cell_text(target_cell, value: str, font_size: float = 10.0) -> None:
     target_cell.text = value or ""
+    for paragraph in target_cell.paragraphs:
+        format_paragraph(paragraph, font_size)
 
 
 def replace_text_preserving_runs(doc: Document, replacements: dict[str, str]) -> None:
@@ -121,6 +136,7 @@ def replace_in_paragraph(paragraph, replacements: dict[str, str]) -> None:
     if new_text == text:
         return
     paragraph.runs[0].text = new_text
+    format_run(paragraph.runs[0])
     for run in paragraph.runs[1:]:
         run.text = ""
 
@@ -153,11 +169,11 @@ def fill_common_fields(doc: Document, data: dict) -> None:
     set_cell_text(cell(table.rows[4], 11), customer.get("mobile", ""))
 
     sample_text = (
-        f"測試件名稱：{sample.get('name', '')}"
-        f"                          測試件數量：{sample.get('quantity', '')}\n\n"
+        f"測試件名稱：{sample.get('name', '')}　"
+        f"測試件數量：{sample.get('quantity', '')}\n"
         f"測試件狀態描述：{sample.get('description', '')}"
     )
-    set_cell_text(cell(table.rows[5], 1), sample_text)
+    set_cell_text(cell(table.rows[5], 1), sample_text, font_size=9.5)
 
     sample_return = sample.get("sample_return")
     report_delivery = sample.get("report_delivery")
@@ -184,15 +200,8 @@ def fill_common_fields(doc: Document, data: dict) -> None:
 
 
 def fill_note_total(doc: Document, total: int | str | None) -> None:
-    if not total:
-        return
-    note_table = doc.tables[1]
-    note_cell = note_table.rows[0].cells[1]
-    old = "檢測費用總計新台幣      元(含稅)"
-    new = f"檢測費用總計新台幣 {total} 元(含稅)"
-    replace_text_preserving_runs(doc, {old: new})
-    if old in note_cell.text:
-        note_cell.text = note_cell.text.replace(old, new)
+    # The official application form keeps this amount blank for internal use.
+    return
 
 
 def choose_template(data: dict, paper_template: Path, ink_template: Path) -> tuple[Path, dict[str, str]]:
