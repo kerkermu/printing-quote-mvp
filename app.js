@@ -555,6 +555,56 @@ function downloadCurrentHtml() {
   URL.revokeObjectURL(url);
 }
 
+async function downloadOfficialDocx() {
+  if (!state.activeCase) return;
+  if (window.location.protocol === "file:") {
+    alert("正式 Word 申請書需要從本機後端開啟。請使用 http://127.0.0.1:8765/ 進入系統。");
+    return;
+  }
+
+  const button = $("#downloadOfficialDocxBtn");
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "產生中...";
+
+  try {
+    const response = await fetch("/api/generate-application", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state.activeCase),
+    });
+
+    if (!response.ok) {
+      let message = "產生正式申請書失敗。";
+      try {
+        const error = await response.json();
+        message = error.error || message;
+      } catch {
+        // Keep generic message when the response is not JSON.
+      }
+      throw new Error(message);
+    }
+
+    const blob = await response.blob();
+    const disposition = response.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename\*=UTF-8''(.+)$/);
+    const filename = match
+      ? decodeURIComponent(match[1])
+      : `${state.activeCase.caseNo}_申請書.docx`;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
 function bindEvents() {
   $$(".nav-item").forEach((button) => {
     button.addEventListener("click", () => setView(button.dataset.view));
@@ -602,6 +652,7 @@ function bindEvents() {
   $("#closeDialogBtn").addEventListener("click", () => $("#documentDialog").close());
   $("#printDocBtn").addEventListener("click", () => window.print());
   $("#downloadHtmlBtn").addEventListener("click", downloadCurrentHtml);
+  $("#downloadOfficialDocxBtn").addEventListener("click", downloadOfficialDocx);
 
   $("#resetDemoBtn").addEventListener("click", () => {
     if (!confirm("確定要清除 demo 資料？")) return;

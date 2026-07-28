@@ -45,3 +45,15 @@
 ## 本機開啟
 
 直接用瀏覽器開啟 `index.html` 即可。
+
+若要下載正式 Word 申請書，請啟動本機後端：
+
+```powershell
+& 'C:\Users\user\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' server.py
+```
+
+然後開啟：
+
+```text
+http://127.0.0.1:8765/
+```
