@@ -222,6 +222,18 @@ function fillProfileForm() {
   if (state.user) fillForm($("#profileForm"), state.user);
 }
 
+function markRequiredFields() {
+  const form = $("#quoteForm");
+  form.querySelectorAll("[required]").forEach((input) => {
+    const label = input.closest("label");
+    if (!label || label.querySelector(".required-mark")) return;
+    const mark = document.createElement("span");
+    mark.className = "required-mark";
+    mark.textContent = "*";
+    label.insertBefore(mark, input);
+  });
+}
+
 function renderCategoryFilter() {
   const serviceType = $("#serviceType")?.value || "paper";
   const availableCategories = categories.filter((category) => category.serviceType === serviceType);
@@ -1154,6 +1166,7 @@ function bindEvents() {
 function init() {
   renderCategoryFilter();
   renderTests();
+  markRequiredFields();
   bindEvents();
   syncAccountUi();
   calculateEstimate();
