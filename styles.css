@@ -839,6 +839,67 @@ select:focus {
   font-weight: 900;
 }
 
+.submission-status {
+  margin-bottom: 18px;
+}
+
+.submission-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+.submission-hero h3,
+.submission-hero p {
+  margin: 0;
+}
+
+.submission-hero h3 {
+  font-size: 22px;
+  margin: 6px 0 8px;
+}
+
+.submission-hero p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.process-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.process-list article {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fbfc;
+}
+
+.process-list strong,
+.process-list span,
+.uploaded-list strong,
+.uploaded-list span {
+  display: block;
+}
+
+.process-list span,
+.uploaded-list span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  margin-top: 6px;
+}
+
+.uploaded-list {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
 .admin-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.7fr);

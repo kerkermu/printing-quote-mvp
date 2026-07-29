@@ -4,6 +4,8 @@ import json
 import mimetypes
 import subprocess
 from datetime import date
+from email import policy
+from email.parser import BytesParser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import quote
@@ -116,11 +118,16 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
             "/api/preview-application",
             "/api/generate-quote",
             "/api/preview-quote",
+            "/api/submit-documents",
         ):
             self.send_error(404, "Not found")
             return
 
         try:
+            if self.path == "/api/submit-documents":
+                self.handle_submission_upload()
+                return
+
             length = int(self.headers.get("Content-Length", "0"))
             raw_body = self.rfile.read(length)
             payload = json.loads(raw_body.decode("utf-8-sig"))
@@ -176,6 +183,47 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
                 + details
             )
         return pdf_path
+
+    def handle_submission_upload(self) -> None:
+        content_type = self.headers.get("Content-Type", "")
+        if "multipart/form-data" not in content_type:
+            raise RuntimeError("Submission upload must use multipart/form-data.")
+
+        length = int(self.headers.get("Content-Length", "0"))
+        raw_body = self.rfile.read(length)
+        message = BytesParser(policy=policy.default).parsebytes(
+            f"Content-Type: {content_type}\r\nMIME-Version: 1.0\r\n\r\n".encode("utf-8")
+            + raw_body
+        )
+
+        case_no = "CASE"
+        note = ""
+        saved_files = []
+        upload_root = GENERATED_DIR / "submissions"
+        upload_root.mkdir(parents=True, exist_ok=True)
+
+        for part in message.iter_parts():
+            disposition = part.get("Content-Disposition", "")
+            field_name = part.get_param("name", header="content-disposition")
+            filename = part.get_filename()
+            payload = part.get_payload(decode=True) or b""
+            if field_name == "caseNo":
+                case_no = clean_filename(payload.decode("utf-8", errors="ignore").strip() or "CASE")
+            elif field_name == "note":
+                note = payload.decode("utf-8", errors="ignore").strip()
+            elif field_name == "signedFiles" and filename:
+                safe_name = clean_filename(filename)
+                case_dir = upload_root / case_no
+                case_dir.mkdir(parents=True, exist_ok=True)
+                destination = case_dir / safe_name
+                counter = 2
+                while destination.exists():
+                    destination = case_dir / f"{destination.stem}_{counter}{destination.suffix}"
+                    counter += 1
+                destination.write_bytes(payload)
+                saved_files.append(destination.name)
+
+        self.send_json({"ok": True, "caseNo": case_no, "files": saved_files, "note": note})
 
     def send_json(self, data: dict, status: int = 200) -> None:
         encoded = json.dumps(data, ensure_ascii=False).encode("utf-8")

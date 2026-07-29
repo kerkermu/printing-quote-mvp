@@ -114,9 +114,7 @@ const defaultTestIds = new Set(["paper-weight", "paper-whiteness", "paper-opacit
 const state = {
   user: JSON.parse(localStorage.getItem("ptri_user") || JSON.stringify(demoUser)),
   cases: JSON.parse(localStorage.getItem("ptri_cases") || "[]"),
-  selectedDoc: "application",
   activeCase: null,
-  previewPdfUrl: null,
 };
 
 if (state.user?.email === "customer@example.com" || state.user?.companyName === demoUser.companyName) {
@@ -156,12 +154,14 @@ function setView(viewName) {
     login: "客戶登入",
     quote: "印刷適性實驗室線上申請與報價",
     cases: "我的案件",
+    submission: "簽章文件繳交專區",
     admin: "內部後台",
     settings: "帳戶資料",
   };
   $("#viewTitle").textContent = titles[viewName] || "檢測線上報價";
 
   if (viewName === "cases") renderCases();
+  if (viewName === "submission") renderSubmission();
   if (viewName === "admin") renderKanban();
   if (viewName === "settings") fillProfileForm();
 }
@@ -330,8 +330,9 @@ function createCase(formData, estimate) {
   };
 }
 
-function submitQuote(event) {
+async function submitQuote(event) {
   event.preventDefault();
+  const submitButton = event.submitter || event.currentTarget.querySelector('button[type="submit"]');
   const estimate = calculateEstimate();
   if (estimate.items.length === 0) {
     alert("請至少選擇一個檢測項目。");
@@ -349,7 +350,23 @@ function submitQuote(event) {
   saveState();
   renderCases();
   renderKanban();
-  openDocuments(newCase);
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "產生並下載中...";
+  }
+
+  try {
+    await downloadOfficialDocx(newCase, "application");
+    await downloadOfficialDocx(newCase, "quote");
+    setView("submission");
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "送出並產生文件";
+    }
+  }
 }
 
 function renderCases() {
@@ -371,7 +388,7 @@ function renderCases() {
         </div>
         <div>
           <span class="status">${item.status}</span>
-          <button class="ghost-button" type="button" data-open-case="${item.id}">文件</button>
+          <button class="ghost-button" type="button" data-submit-case="${item.id}">繳交</button>
         </div>
       </article>
     `
@@ -390,11 +407,10 @@ function renderKanban() {
           <div>
             <h4>${item.caseNo}</h4>
             <p>${item.customer.companyName}｜${item.sample.sampleName}</p>
-            <p>應產生：申請書、報價單、內部簽呈</p>
+            <p>廠商文件：申請書、報價單；內部文件由後台處理</p>
           </div>
           <div>
             <span class="status">${item.status}</span>
-            <button class="ghost-button" type="button" data-open-case="${item.id}">查看</button>
           </div>
         </article>
       `
@@ -617,143 +633,176 @@ function buildDocument(caseData, type) {
   `;
 }
 
-function openDocuments(caseData) {
-  state.activeCase = caseData;
-  state.selectedDoc = "application";
-  $("#dialogTitle").textContent = `${caseData.caseNo} 文件預覽`;
-  renderDocumentPreview();
-  $("#documentDialog").showModal();
+function renderSubmission() {
+  renderSubmissionSelect();
+  renderSubmissionStatus();
 }
 
-function renderDocumentPreview() {
-  $$(".doc-tab").forEach((tab) =>
-    tab.classList.toggle("active", tab.dataset.doc === state.selectedDoc)
-  );
-  $("#downloadOfficialDocxBtn").textContent =
-    state.selectedDoc === "quote" ? "下載正式報價單 Word" : "下載正式申請書 Word";
-  if (state.selectedDoc === "application" || state.selectedDoc === "quote") {
-    renderOfficialPdfPreview(state.selectedDoc);
-    return;
-  }
-  releasePreviewPdfUrl();
-  $("#documentPreview").innerHTML = buildDocument(state.activeCase, state.selectedDoc);
+function renderSubmissionSelect() {
+  const select = $("#submissionCaseSelect");
+  if (!select) return;
+  select.innerHTML =
+    state.cases
+      .map(
+        (item) =>
+          `<option value="${item.id}">${item.caseNo}｜${item.sample.sampleName}｜${item.status}</option>`
+      )
+      .join("") || `<option value="">尚無可繳交案件</option>`;
+  if (state.activeCase) select.value = state.activeCase.id;
 }
 
-function releasePreviewPdfUrl() {
-  if (!state.previewPdfUrl) return;
-  URL.revokeObjectURL(state.previewPdfUrl);
-  state.previewPdfUrl = null;
-}
-
-async function renderOfficialPdfPreview(docType) {
-  const preview = $("#documentPreview");
-  releasePreviewPdfUrl();
-  const isQuote = docType === "quote";
-  const label = isQuote ? "正式報價單" : "正式申請書";
-  const endpoint = isQuote ? "/api/preview-quote" : "/api/preview-application";
-
-  if (window.location.protocol === "file:") {
-    preview.innerHTML = buildDocument(state.activeCase, docType);
-    return;
-  }
-
-  preview.innerHTML = `
-    <div class="pdf-loading">
-      <strong>正在產生${label}預覽</strong>
-      <span>系統會先套用官方 Word 模板，再轉成 PDF 顯示。</span>
-    </div>
-  `;
-
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(state.activeCase),
-    });
-
-    if (!response.ok) {
-      let message = `無法產生${label}預覽。`;
-      try {
-        const error = await response.json();
-        message = error.error || message;
-      } catch {
-        // Keep generic message when the response is not JSON.
-      }
-      throw new Error(message);
-    }
-
-    const blob = await response.blob();
-    state.previewPdfUrl = URL.createObjectURL(blob);
-    preview.innerHTML = `
-      <iframe
-        class="pdf-preview-frame"
-        title="${label} PDF 預覽"
-        src="${state.previewPdfUrl}"
-      ></iframe>
+function renderSubmissionStatus() {
+  const panel = $("#submissionStatus");
+  if (!panel) return;
+  const caseData = state.activeCase || state.cases[0];
+  if (!caseData) {
+    panel.innerHTML = `
+      <p class="eyebrow">Submission</p>
+      <h3>尚無案件可繳交</h3>
+      <p class="fine-print">請先完成線上詢價，系統會自動下載申請書與報價單，再引導到這裡回傳簽章文件。</p>
     `;
-  } catch (error) {
-    preview.innerHTML = `
-      <div class="pdf-error">
-        <strong>${label}預覽暫時無法顯示</strong>
-        <span>${error.message}</span>
-        <span>仍可使用下方按鈕下載${label} Word。</span>
+    return;
+  }
+
+  const files = caseData.submission?.files || [];
+  panel.innerHTML = `
+    <div class="submission-hero">
+      <div>
+        <p class="eyebrow">Next Step</p>
+        <h3>${caseData.caseNo} 簽章文件回傳</h3>
+        <p>請確認下載的正式申請書與報價單內容，完成簽名蓋章後，在下方上傳掃描檔或拍照檔。</p>
       </div>
-      ${buildDocument(state.activeCase, docType)}
-    `;
-  }
+      <span class="status">${caseData.status}</span>
+    </div>
+    <div class="process-list">
+      <article>
+        <strong>已產生文件</strong>
+        <span>正式申請書 Word、正式報價單 Word 已於送出後自動下載。</span>
+      </article>
+      <article>
+        <strong>簽章後回傳</strong>
+        <span>支援 PDF、Word、JPG、PNG，可一次上傳多個檔案。</span>
+      </article>
+      <article>
+        <strong>中心確認</strong>
+        <span>同仁確認文件與付款狀態後，案件才會正式開案。</span>
+      </article>
+    </div>
+    ${
+      files.length
+        ? `<div class="uploaded-list"><strong>已回傳檔案</strong>${files
+            .map((file) => `<span>${file}</span>`)
+            .join("")}</div>`
+        : ""
+    }
+  `;
 }
 
-async function downloadOfficialDocx() {
-  if (!state.activeCase) return;
-  const isQuote = state.selectedDoc === "quote";
+async function downloadOfficialDocx(caseData, docType) {
+  const isQuote = docType === "quote";
   const endpoint = isQuote ? "/api/generate-quote" : "/api/generate-application";
   const label = isQuote ? "報價單" : "申請書";
+
   if (window.location.protocol === "file:") {
-    alert(`正式 Word ${label}需要從本機後端開啟。請使用 http://127.0.0.1:8765/ 進入系統。`);
+    throw new Error(`正式 Word ${label}需要從本機後端開啟。請使用 http://127.0.0.1:8765/ 進入系統。`);
+  }
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(caseData),
+  });
+
+  if (!response.ok) {
+    let message = `產生正式${label}失敗。`;
+    try {
+      const error = await response.json();
+      message = error.error || message;
+    } catch {
+      // Keep generic message when the response is not JSON.
+    }
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename\*=UTF-8''(.+)$/);
+  const filename = match ? decodeURIComponent(match[1]) : `${caseData.caseNo}_${label}.docx`;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function submitSignedDocuments(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submitButton = event.submitter || form.querySelector('button[type="submit"]');
+  const caseId = form.elements.caseId.value;
+  const caseData = state.cases.find((item) => item.id === caseId);
+  const selectedFiles = [...form.elements.signedFiles.files];
+
+  if (!caseData) {
+    alert("請先選擇要繳交的案件。");
+    return;
+  }
+  if (!selectedFiles.length) {
+    alert("請至少上傳一個簽章文件。");
     return;
   }
 
-  const button = $("#downloadOfficialDocxBtn");
-  const originalText = button.textContent;
-  button.disabled = true;
-  button.textContent = "產生中...";
+  if (window.location.protocol === "file:") {
+    alert("線上回傳需要從本機後端開啟。請使用 http://127.0.0.1:8765/ 進入系統。");
+    return;
+  }
 
+  const formData = new FormData();
+  formData.append("caseNo", caseData.caseNo);
+  formData.append("note", form.elements.submissionNote.value || "");
+  selectedFiles.forEach((file) => formData.append("signedFiles", file));
+
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "回傳中...";
+  }
+
+  let uploadedFiles = selectedFiles.map((file) => file.name);
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch("/api/submit-documents", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(state.activeCase),
+      body: formData,
     });
-
-    if (!response.ok) {
-      let message = `產生正式${label}失敗。`;
-      try {
-        const error = await response.json();
-        message = error.error || message;
-      } catch {
-        // Keep generic message when the response is not JSON.
-      }
-      throw new Error(message);
+    const result = await response.json();
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || "回傳文件失敗。");
     }
-
-    const blob = await response.blob();
-    const disposition = response.headers.get("Content-Disposition") || "";
-    const match = disposition.match(/filename\*=UTF-8''(.+)$/);
-    const filename = match
-      ? decodeURIComponent(match[1])
-      : `${state.activeCase.caseNo}_${label}.docx`;
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
+    uploadedFiles = result.files?.length ? result.files : uploadedFiles;
   } catch (error) {
     alert(error.message);
+    return;
   } finally {
-    button.disabled = false;
-    button.textContent = originalText;
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = "送出回傳資料";
+    }
   }
+
+  caseData.status = "已回傳";
+  caseData.submission = {
+    files: uploadedFiles,
+    note: form.elements.submissionNote.value || "",
+    submittedAt: new Date().toISOString(),
+  };
+  state.activeCase = caseData;
+  saveState();
+  renderCases();
+  renderKanban();
+  renderSubmission();
+  form.reset();
+  $("#submissionCaseSelect").value = caseData.id;
+  alert("已收到回傳資料，待印研中心同仁確認。");
 }
 
 function bindEvents() {
@@ -791,25 +840,21 @@ function bindEvents() {
   });
 
   document.body.addEventListener("click", (event) => {
-    const openCaseId = event.target.dataset.openCase;
-    if (openCaseId) {
-      const caseData = state.cases.find((item) => item.id === openCaseId);
-      if (caseData) openDocuments(caseData);
+    const submitCaseId = event.target.dataset.submitCase;
+    if (submitCaseId) {
+      const caseData = state.cases.find((item) => item.id === submitCaseId);
+      if (caseData) {
+        state.activeCase = caseData;
+        setView("submission");
+      }
     }
   });
 
-  $$(".doc-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      state.selectedDoc = tab.dataset.doc;
-      renderDocumentPreview();
-    });
+  $("#submissionForm").addEventListener("submit", submitSignedDocuments);
+  $("#submissionCaseSelect").addEventListener("change", (event) => {
+    state.activeCase = state.cases.find((item) => item.id === event.target.value) || null;
+    renderSubmissionStatus();
   });
-
-  $("#closeDialogBtn").addEventListener("click", () => {
-    releasePreviewPdfUrl();
-    $("#documentDialog").close();
-  });
-  $("#downloadOfficialDocxBtn").addEventListener("click", downloadOfficialDocx);
 
   $("#resetDemoBtn").addEventListener("click", () => {
     if (!confirm("確定要清除 demo 資料？")) return;

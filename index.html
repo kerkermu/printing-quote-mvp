@@ -30,6 +30,7 @@
         <nav class="nav" aria-label="主要功能">
           <button class="nav-item active" data-view="quote">新增詢價</button>
           <button class="nav-item" data-view="cases">我的案件</button>
+          <button class="nav-item" data-view="submission">繳交專區</button>
           <button class="nav-item" data-view="admin">內部後台</button>
           <button class="nav-item" data-view="settings">帳戶資料</button>
         </nav>
@@ -59,7 +60,7 @@
             <p class="eyebrow">Printability Laboratory</p>
             <h2 id="serviceTitle">印刷適性實驗室</h2>
             <p>
-              提供紙張、油墨、印刷品與包裝材料相關檢測服務。此 MVP 將原本申請書、報價單與內部簽呈流程線上化，協助客戶先完成資料填寫並產生回簽文件。
+              提供紙張、油墨、印刷品與包裝材料相關檢測服務。此 MVP 協助客戶線上填寫資料，自動產生申請書與報價單，並於簽章後線上回傳。
             </p>
           </div>
           <div class="service-contact">
@@ -80,7 +81,7 @@
           </article>
           <article>
             <strong>3. 文件產生</strong>
-            <span>產生申請書、報價單與內部簽呈。</span>
+            <span>自動下載申請書與報價單。</span>
           </article>
           <article>
             <strong>4. 回簽開案</strong>
@@ -94,7 +95,7 @@
               <p class="eyebrow">MVP demo</p>
               <h2 id="loginTitle">從服務頁進入線上申請流程</h2>
               <p>
-                這個版本先展示核心流程：客戶登入後自動帶入公司資料，填寫樣品與檢測項目後，系統產生申請書、報價單與內部簽呈。
+                這個版本先展示核心流程：客戶登入後自動帶入公司資料，填寫樣品與檢測項目後，系統產生申請書與報價單，簽章後可線上回傳。
               </p>
             </div>
           </div>
@@ -359,6 +360,46 @@
           </div>
         </section>
 
+        <section class="view" id="submissionView">
+          <div class="workflow">
+            <span class="step active">1 下載文件</span>
+            <span class="step active">2 簽名蓋章</span>
+            <span class="step active">3 線上回傳</span>
+            <span class="step">4 中心確認</span>
+          </div>
+
+          <section class="panel submission-status" id="submissionStatus"></section>
+
+          <form class="panel form-grid" id="submissionForm">
+            <div class="section-heading full-row">
+              <div>
+                <p class="eyebrow">Return Documents</p>
+                <h3>簽章文件繳交</h3>
+              </div>
+              <span class="pill">廠商回傳</span>
+            </div>
+            <label class="full-row">
+              選擇案件
+              <select name="caseId" id="submissionCaseSelect" required></select>
+            </label>
+            <label class="full-row">
+              上傳已簽章文件
+              <input
+                name="signedFiles"
+                type="file"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                multiple
+                required
+              />
+            </label>
+            <label class="full-row">
+              回傳備註
+              <textarea name="submissionNote" rows="4" placeholder="例如：已完成申請書與報價單用印，請協助確認。"></textarea>
+            </label>
+            <button class="primary-button full-row" type="submit">送出回傳資料</button>
+          </form>
+        </section>
+
         <section class="view" id="adminView">
           <div class="admin-grid">
             <section class="panel">
@@ -426,25 +467,6 @@
         </section>
       </main>
     </div>
-
-    <dialog id="documentDialog">
-      <div class="dialog-header">
-        <div>
-          <p class="eyebrow">Generated documents</p>
-          <h3 id="dialogTitle">文件預覽</h3>
-        </div>
-        <button class="icon-button" id="closeDialogBtn" type="button" aria-label="關閉">x</button>
-      </div>
-      <div class="document-tabs">
-        <button class="doc-tab active" data-doc="application">正式申請書</button>
-        <button class="doc-tab" data-doc="quote">報價單</button>
-        <button class="doc-tab" data-doc="memo">內部簽呈</button>
-      </div>
-      <article class="document-preview" id="documentPreview"></article>
-      <div class="dialog-actions">
-        <button class="primary-button" id="downloadOfficialDocxBtn" type="button">下載正式申請書 Word</button>
-      </div>
-    </dialog>
 
     <script src="./app.js"></script>
   </body>
