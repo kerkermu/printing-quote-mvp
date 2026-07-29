@@ -1072,6 +1072,18 @@ select:focus {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.internal-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.internal-actions .primary-button,
+.internal-actions .ghost-button {
+  min-height: 40px;
+  padding: 9px 10px;
+}
+
 .internal-steps {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1408,6 +1420,7 @@ dialog::backdrop {
 
   .internal-meta,
   .internal-controls,
+  .internal-actions,
   .internal-steps {
     grid-template-columns: 1fr;
   }

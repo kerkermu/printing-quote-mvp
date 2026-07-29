@@ -110,7 +110,7 @@ const demoUser = {
 };
 
 const defaultTestIds = new Set(["paper-weight", "paper-whiteness", "paper-opacity"]);
-const casesResetVersion = "20260729-clear-cases-v3";
+const casesResetVersion = "20260729-clear-cases-v5";
 const internalSteps = [
   "收到申請書",
   "寄出報價單",
@@ -428,7 +428,7 @@ function createCase(formData, estimate) {
   return {
     id: crypto.randomUUID(),
     caseNo,
-    status: "待確認",
+    status: "待報價確認",
     serviceType: formData.serviceType,
     createdAt: now.toISOString(),
     customer: {
@@ -461,6 +461,8 @@ function createCase(formData, estimate) {
     estimate,
     internal: {
       confirmed: false,
+      quoteApprovedAt: "",
+      quoteSentAt: "",
       paymentStatus: "未確認",
       note: "",
       steps: internalSteps.map((name) => ({
@@ -490,13 +492,13 @@ async function submitQuote(event) {
   renderKanban();
   if (submitButton) {
     submitButton.disabled = true;
-    submitButton.textContent = "產生並下載中...";
+    submitButton.textContent = "送出申請中...";
   }
 
   try {
     await downloadOfficialDocx(newCase, "application");
-    await downloadOfficialDocx(newCase, "quote");
-    setView("submission");
+    alert("申請已送出，報價單將由印研中心同仁確認後再提供。");
+    setView("cases");
   } catch (error) {
     alert(error.message);
   } finally {
@@ -560,6 +562,8 @@ function ensureInternalCase(caseData) {
     };
   });
   caseData.internal.confirmed = Boolean(caseData.internal.confirmed);
+  caseData.internal.quoteApprovedAt = caseData.internal.quoteApprovedAt || "";
+  caseData.internal.quoteSentAt = caseData.internal.quoteSentAt || "";
   caseData.internal.paymentStatus = caseData.internal.paymentStatus || "未確認";
   caseData.internal.note = caseData.internal.note || "";
   return caseData;
@@ -590,7 +594,20 @@ function buildInternalCaseCard(caseData) {
   const submission = caseData.submission;
   const files = submission?.files || [];
   const submittedAt = submission?.submittedAt ? formatDateTime(submission.submittedAt) : "尚未回傳";
-  const statusOptions = ["待確認", "已回傳", "已確認", "缺件", "待付款", "已收款", "檢測中", "已結案"];
+  const quoteApprovedAt = caseData.internal.quoteApprovedAt ? formatDateTime(caseData.internal.quoteApprovedAt) : "尚未確認";
+  const quoteSentAt = caseData.internal.quoteSentAt ? formatDateTime(caseData.internal.quoteSentAt) : "尚未寄出";
+  const statusOptions = [
+    "待報價確認",
+    "報價已確認",
+    "報價單已寄出",
+    "已回傳",
+    "已確認",
+    "缺件",
+    "待付款",
+    "已收款",
+    "檢測中",
+    "已結案",
+  ];
   const paymentOptions = ["未確認", "未開發票未付款", "未開發票已付款", "已開發票未付款", "已開發票已付款", "確認中"];
 
   return `
@@ -609,6 +626,15 @@ function buildInternalCaseCard(caseData) {
         <span>電話：${caseData.customer.phone || ""}</span>
         <span>回傳：${submittedAt}</span>
         <span>付款：${caseData.internal.paymentStatus}</span>
+        <span>報價確認：${quoteApprovedAt}</span>
+        <span>報價寄出：${quoteSentAt}</span>
+      </div>
+
+      <div class="internal-actions">
+        <button class="ghost-button" type="button" data-download-doc="${caseData.id}" data-doc-type="application">下載申請書</button>
+        <button class="ghost-button" type="button" data-download-doc="${caseData.id}" data-doc-type="quote">下載報價單</button>
+        <button class="ghost-button" type="button" data-approve-quote="${caseData.id}">標記報價已確認</button>
+        <button class="primary-button" type="button" data-send-quote="${caseData.id}">標記已寄出報價單</button>
       </div>
 
       <div class="internal-progress">
@@ -896,6 +922,7 @@ function buildDocument(caseData, type) {
 function renderSubmission() {
   renderSubmissionSelect();
   renderSubmissionStatus();
+  syncSubmissionFormState();
 }
 
 function renderSubmissionSelect() {
@@ -925,23 +952,27 @@ function renderSubmissionStatus() {
   }
 
   const files = caseData.submission?.files || [];
+  const canSubmitSignedDocs = Boolean(caseData.internal?.quoteSentAt) || ["報價單已寄出", "已回傳", "已確認", "缺件"].includes(caseData.status);
+  const waitingMessage = canSubmitSignedDocs
+    ? "請確認收到的正式申請書與報價單內容，完成簽名蓋章後，在下方上傳掃描檔或拍照檔。"
+    : "報價單目前由印研中心同仁確認中，確認並寄出後，這裡會開放簽章文件回傳。";
   panel.innerHTML = `
     <div class="submission-hero">
       <div>
         <p class="eyebrow">Next Step</p>
-        <h3>${caseData.caseNo} 簽章文件回傳</h3>
-        <p>請確認下載的正式申請書與報價單內容，完成簽名蓋章後，在下方上傳掃描檔或拍照檔。</p>
+        <h3>${caseData.caseNo} ${canSubmitSignedDocs ? "簽章文件回傳" : "等待報價確認"}</h3>
+        <p>${waitingMessage}</p>
       </div>
       <span class="status">${caseData.status}</span>
     </div>
     <div class="process-list">
       <article>
-        <strong>已產生文件</strong>
-        <span>正式申請書 Word、正式報價單 Word 已於送出後自動下載。</span>
+        <strong>申請已建立</strong>
+        <span>客戶送出後先產生申請書，報價單需由內部確認後提供。</span>
       </article>
       <article>
-        <strong>簽章後回傳</strong>
-        <span>支援 PDF、Word、JPG、PNG，可一次上傳多個檔案。</span>
+        <strong>報價確認</strong>
+        <span>${canSubmitSignedDocs ? "中心已提供報價單，可進行簽章回傳。" : "中心同仁確認金額、急件加成與特殊項目。"}</span>
       </article>
       <article>
         <strong>中心確認</strong>
@@ -956,6 +987,19 @@ function renderSubmissionStatus() {
         : ""
     }
   `;
+  syncSubmissionFormState();
+}
+
+function syncSubmissionFormState() {
+  const form = $("#submissionForm");
+  if (!form) return;
+  const caseData = state.activeCase || state.cases[0];
+  const canSubmit = Boolean(
+    caseData && (caseData.internal?.quoteSentAt || ["報價單已寄出", "已回傳", "已確認", "缺件"].includes(caseData.status))
+  );
+  form.querySelectorAll("input, textarea, button").forEach((element) => {
+    element.disabled = !canSubmit;
+  });
 }
 
 async function downloadOfficialDocx(caseData, docType) {
@@ -1006,6 +1050,10 @@ async function submitSignedDocuments(event) {
 
   if (!caseData) {
     alert("請先選擇要繳交的案件。");
+    return;
+  }
+  if (!caseData.internal?.quoteSentAt && !["報價單已寄出", "已回傳", "已確認", "缺件"].includes(caseData.status)) {
+    alert("報價單尚未由印研中心確認並寄出，暫時不能回傳簽章文件。");
     return;
   }
   if (!selectedFiles.length) {
@@ -1109,6 +1157,40 @@ function bindEvents() {
         state.activeCase = caseData;
         setView("submission");
       }
+      return;
+    }
+
+    const downloadCaseId = event.target.dataset.downloadDoc;
+    if (downloadCaseId) {
+      const caseData = state.cases.find((item) => item.id === downloadCaseId);
+      if (caseData) downloadOfficialDocx(caseData, event.target.dataset.docType || "application");
+      return;
+    }
+
+    const approveCaseId = event.target.dataset.approveQuote;
+    if (approveCaseId) {
+      const caseData = ensureInternalCase(state.cases.find((item) => item.id === approveCaseId));
+      if (!caseData) return;
+      caseData.internal.quoteApprovedAt = new Date().toISOString();
+      caseData.status = "報價已確認";
+      saveState();
+      renderCases();
+      renderKanban();
+      renderSubmission();
+      return;
+    }
+
+    const sendQuoteCaseId = event.target.dataset.sendQuote;
+    if (sendQuoteCaseId) {
+      const caseData = ensureInternalCase(state.cases.find((item) => item.id === sendQuoteCaseId));
+      if (!caseData) return;
+      caseData.internal.quoteApprovedAt = caseData.internal.quoteApprovedAt || new Date().toISOString();
+      caseData.internal.quoteSentAt = new Date().toISOString();
+      caseData.status = "報價單已寄出";
+      saveState();
+      renderCases();
+      renderKanban();
+      renderSubmission();
     }
   });
 
