@@ -111,6 +111,21 @@ const demoUser = {
 
 const defaultTestIds = new Set(["paper-weight", "paper-whiteness", "paper-opacity"]);
 const casesResetVersion = "20260729-clear-cases-v5";
+const caseStatuses = [
+  "待報價確認",
+  "報價已確認",
+  "報價單已寄出",
+  "已回傳",
+  "已確認",
+  "缺件",
+  "待付款",
+  "已收款",
+  "檢測中",
+  "報告完成",
+  "已結案",
+];
+const uploadReadyStatuses = new Set(["報價單已寄出", "已回傳", "已確認", "缺件"]);
+const paymentStatuses = ["未確認", "未開發票未付款", "未開發票已付款", "已開發票未付款", "已開發票已付款", "確認中"];
 const internalSteps = [
   "收到申請書",
   "寄出報價單",
@@ -121,6 +136,18 @@ const internalSteps = [
   "建立檢測細目",
   "寄送測試報告",
 ];
+const statusStepMap = {
+  待報價確認: ["收到申請書"],
+  報價已確認: ["收到申請書"],
+  報價單已寄出: ["收到申請書", "寄出報價單"],
+  已回傳: ["收到申請書", "寄出報價單", "廠商回簽報價單"],
+  已確認: ["收到申請書", "寄出報價單", "廠商回簽報價單"],
+  待付款: ["收到申請書", "寄出報價單", "廠商回簽報價單"],
+  已收款: ["收到申請書", "寄出報價單", "廠商回簽報價單"],
+  檢測中: ["收到申請書", "寄出報價單", "廠商回簽報價單", "製作申請簽呈", "送出申請簽呈", "完成申請簽呈", "建立檢測細目"],
+  報告完成: ["收到申請書", "寄出報價單", "廠商回簽報價單", "製作申請簽呈", "送出申請簽呈", "完成申請簽呈", "建立檢測細目", "寄送測試報告"],
+  已結案: ["收到申請書", "寄出報價單", "廠商回簽報價單", "製作申請簽呈", "送出申請簽呈", "完成申請簽呈", "建立檢測細目", "寄送測試報告"],
+};
 
 if (localStorage.getItem("ptri_cases_reset_version") !== casesResetVersion) {
   localStorage.setItem("ptri_cases", "[]");
@@ -150,6 +177,19 @@ const money = (value) =>
 function saveState() {
   localStorage.setItem("ptri_user", JSON.stringify(state.user));
   localStorage.setItem("ptri_cases", JSON.stringify(state.cases));
+}
+
+function markInternalStep(caseData, stepName, done = true) {
+  const internalCase = ensureInternalCase(caseData);
+  const step = internalCase.internal.steps.find((item) => item.name === stepName);
+  if (!step || step.done === done) return;
+  step.done = done;
+  step.completedAt = done ? new Date().toISOString() : "";
+}
+
+function syncCaseStepsFromStatus(caseData) {
+  const steps = statusStepMap[caseData.status] || [];
+  steps.forEach((stepName) => markInternalStep(caseData, stepName));
 }
 
 function setView(viewName) {
@@ -466,8 +506,8 @@ function createCase(formData, estimate) {
       note: "",
       steps: internalSteps.map((name) => ({
         name,
-        done: false,
-        completedAt: "",
+        done: name === "收到申請書",
+        completedAt: name === "收到申請書" ? now.toISOString() : "",
       })),
     },
   };
@@ -546,6 +586,9 @@ function renderKanban() {
 
 function ensureInternalCase(caseData) {
   if (!caseData) return null;
+  if (!caseStatuses.includes(caseData.status)) {
+    caseData.status = "待報價確認";
+  }
   if (!caseData.internal) {
     caseData.internal = {};
   }
@@ -563,8 +606,13 @@ function ensureInternalCase(caseData) {
   caseData.internal.confirmed = Boolean(caseData.internal.confirmed);
   caseData.internal.quoteApprovedAt = caseData.internal.quoteApprovedAt || "";
   caseData.internal.quoteSentAt = caseData.internal.quoteSentAt || "";
-  caseData.internal.paymentStatus = caseData.internal.paymentStatus || "未確認";
+  if (!paymentStatuses.includes(caseData.internal.paymentStatus)) {
+    caseData.internal.paymentStatus = "未確認";
+  }
   caseData.internal.note = caseData.internal.note || "";
+  if (caseData.submission) {
+    caseData.submission.archiveDir = caseData.submission.archiveDir || "";
+  }
   return caseData;
 }
 
@@ -595,19 +643,7 @@ function buildInternalCaseCard(caseData) {
   const submittedAt = submission?.submittedAt ? formatDateTime(submission.submittedAt) : "尚未回傳";
   const quoteApprovedAt = caseData.internal.quoteApprovedAt ? formatDateTime(caseData.internal.quoteApprovedAt) : "尚未確認";
   const quoteSentAt = caseData.internal.quoteSentAt ? formatDateTime(caseData.internal.quoteSentAt) : "尚未寄出";
-  const statusOptions = [
-    "待報價確認",
-    "報價已確認",
-    "報價單已寄出",
-    "已回傳",
-    "已確認",
-    "缺件",
-    "待付款",
-    "已收款",
-    "檢測中",
-    "已結案",
-  ];
-  const paymentOptions = ["未確認", "未開發票未付款", "未開發票已付款", "已開發票未付款", "已開發票已付款", "確認中"];
+  const archiveDir = submission?.archiveDir || "";
 
   return `
     <article class="internal-card">
@@ -632,6 +668,7 @@ function buildInternalCaseCard(caseData) {
       <div class="internal-actions">
         <button class="ghost-button" type="button" data-download-doc="${caseData.id}" data-doc-type="application">下載申請書</button>
         <button class="ghost-button" type="button" data-download-doc="${caseData.id}" data-doc-type="quote">下載報價單</button>
+        <button class="ghost-button" type="button" data-print-memo="${caseData.id}">產生內部簽呈</button>
         <button class="ghost-button" type="button" data-approve-quote="${caseData.id}">標記報價已確認</button>
         <button class="primary-button" type="button" data-send-quote="${caseData.id}">標記已寄出報價單</button>
       </div>
@@ -651,6 +688,7 @@ function buildInternalCaseCard(caseData) {
             ? files.map((file) => `<span>${file}</span>`).join("")
             : `<span class="muted-inline">尚未回傳簽章文件</span>`
         }
+        ${archiveDir ? `<small>歸檔位置：${archiveDir}</small>` : ""}
         ${submission?.note ? `<small>備註：${submission.note}</small>` : ""}
       </div>
 
@@ -658,7 +696,7 @@ function buildInternalCaseCard(caseData) {
         <label>
           案件狀態
           <select data-internal-status="${caseData.id}">
-            ${statusOptions
+            ${caseStatuses
               .map((status) => `<option value="${status}" ${caseData.status === status ? "selected" : ""}>${status}</option>`)
               .join("")}
           </select>
@@ -666,7 +704,7 @@ function buildInternalCaseCard(caseData) {
         <label>
           付款狀態
           <select data-internal-payment="${caseData.id}">
-            ${paymentOptions
+            ${paymentStatuses
               .map(
                 (status) =>
                   `<option value="${status}" ${caseData.internal.paymentStatus === status ? "selected" : ""}>${status}</option>`
@@ -918,6 +956,30 @@ function buildDocument(caseData, type) {
   `;
 }
 
+function openInternalMemo(caseData) {
+  const memoWindow = window.open("", "_blank");
+  if (!memoWindow) {
+    alert("瀏覽器阻擋了簽呈視窗，請允許此網站開啟彈出視窗。");
+    return;
+  }
+  memoWindow.document.write(`
+    <!doctype html>
+    <html lang="zh-Hant">
+      <head>
+        <meta charset="utf-8" />
+        <title>${caseData.caseNo} 內部簽呈</title>
+        <link rel="stylesheet" href="./styles.css" />
+      </head>
+      <body class="print-document">
+        <main class="document-preview active">
+          ${buildDocument(caseData, "memo")}
+        </main>
+      </body>
+    </html>
+  `);
+  memoWindow.document.close();
+}
+
 function renderSubmission() {
   renderSubmissionSelect();
   renderSubmissionStatus();
@@ -951,7 +1013,8 @@ function renderSubmissionStatus() {
   }
 
   const files = caseData.submission?.files || [];
-  const canSubmitSignedDocs = Boolean(caseData.internal?.quoteSentAt) || ["報價單已寄出", "已回傳", "已確認", "缺件"].includes(caseData.status);
+  const archiveDir = caseData.submission?.archiveDir || "";
+  const canSubmitSignedDocs = Boolean(caseData.internal?.quoteSentAt) || uploadReadyStatuses.has(caseData.status);
   const waitingMessage = canSubmitSignedDocs
     ? "請確認收到的正式申請書與報價單內容，完成簽名蓋章後，在下方上傳掃描檔或拍照檔。"
     : "報價單目前由印研中心同仁確認中，確認並寄出後，這裡會開放簽章文件回傳。";
@@ -982,7 +1045,7 @@ function renderSubmissionStatus() {
       files.length
         ? `<div class="uploaded-list"><strong>已回傳檔案</strong>${files
             .map((file) => `<span>${file}</span>`)
-            .join("")}</div>`
+            .join("")}${archiveDir ? `<span>歸檔位置：${archiveDir}</span>` : ""}</div>`
         : ""
     }
   `;
@@ -994,7 +1057,7 @@ function syncSubmissionFormState() {
   if (!form) return;
   const caseData = state.activeCase || state.cases[0];
   const canSubmit = Boolean(
-    caseData && (caseData.internal?.quoteSentAt || ["報價單已寄出", "已回傳", "已確認", "缺件"].includes(caseData.status))
+    caseData && (caseData.internal?.quoteSentAt || uploadReadyStatuses.has(caseData.status))
   );
   form.querySelectorAll("input, textarea, button").forEach((element) => {
     element.disabled = !canSubmit;
@@ -1051,7 +1114,7 @@ async function submitSignedDocuments(event) {
     alert("請先選擇要繳交的案件。");
     return;
   }
-  if (!caseData.internal?.quoteSentAt && !["報價單已寄出", "已回傳", "已確認", "缺件"].includes(caseData.status)) {
+  if (!caseData.internal?.quoteSentAt && !uploadReadyStatuses.has(caseData.status)) {
     alert("報價單尚未由印研中心確認並寄出，暫時不能回傳簽章文件。");
     return;
   }
@@ -1076,6 +1139,7 @@ async function submitSignedDocuments(event) {
   }
 
   let uploadedFiles = selectedFiles.map((file) => file.name);
+  let archiveDir = "";
   try {
     const response = await fetch("/api/submit-documents", {
       method: "POST",
@@ -1086,6 +1150,7 @@ async function submitSignedDocuments(event) {
       throw new Error(result.error || "回傳文件失敗。");
     }
     uploadedFiles = result.files?.length ? result.files : uploadedFiles;
+    archiveDir = result.archiveDir || "";
   } catch (error) {
     alert(error.message);
     return;
@@ -1099,9 +1164,11 @@ async function submitSignedDocuments(event) {
   caseData.status = "已回傳";
   caseData.submission = {
     files: uploadedFiles,
+    archiveDir,
     note: form.elements.submissionNote.value || "",
     submittedAt: new Date().toISOString(),
   };
+  markInternalStep(caseData, "廠商回簽報價單");
   state.activeCase = caseData;
   saveState();
   renderCases();
@@ -1166,12 +1233,25 @@ function bindEvents() {
       return;
     }
 
+    const memoCaseId = event.target.dataset.printMemo;
+    if (memoCaseId) {
+      const caseData = ensureInternalCase(state.cases.find((item) => item.id === memoCaseId));
+      if (caseData) {
+        markInternalStep(caseData, "製作申請簽呈");
+        saveState();
+        renderKanban();
+        openInternalMemo(caseData);
+      }
+      return;
+    }
+
     const approveCaseId = event.target.dataset.approveQuote;
     if (approveCaseId) {
       const caseData = ensureInternalCase(state.cases.find((item) => item.id === approveCaseId));
       if (!caseData) return;
       caseData.internal.quoteApprovedAt = new Date().toISOString();
       caseData.status = "報價已確認";
+      syncCaseStepsFromStatus(caseData);
       saveState();
       renderCases();
       renderKanban();
@@ -1186,6 +1266,7 @@ function bindEvents() {
       caseData.internal.quoteApprovedAt = caseData.internal.quoteApprovedAt || new Date().toISOString();
       caseData.internal.quoteSentAt = new Date().toISOString();
       caseData.status = "報價單已寄出";
+      syncCaseStepsFromStatus(caseData);
       saveState();
       renderCases();
       renderKanban();
@@ -1211,6 +1292,7 @@ function bindEvents() {
       const caseData = ensureInternalCase(state.cases.find((item) => item.id === statusCaseId));
       if (!caseData) return;
       caseData.status = event.target.value;
+      syncCaseStepsFromStatus(caseData);
       saveState();
       renderCases();
       renderKanban();

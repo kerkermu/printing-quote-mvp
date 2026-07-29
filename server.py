@@ -223,7 +223,16 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
                 destination.write_bytes(payload)
                 saved_files.append(destination.name)
 
-        self.send_json({"ok": True, "caseNo": case_no, "files": saved_files, "note": note})
+        archive_dir = f"generated_forms/submissions/{case_no}"
+        self.send_json(
+            {
+                "ok": True,
+                "caseNo": case_no,
+                "files": saved_files,
+                "note": note,
+                "archiveDir": archive_dir,
+            }
+        )
 
     def send_json(self, data: dict, status: int = 200) -> None:
         encoded = json.dumps(data, ensure_ascii=False).encode("utf-8")
