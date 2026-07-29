@@ -691,7 +691,7 @@ select:focus {
 
 .summary-panel {
   grid-column: 2;
-  grid-row: 1 / span 3;
+  grid-row: 2 / span 3;
   position: sticky;
   top: 102px;
   padding: 26px 24px 24px;
