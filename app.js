@@ -456,7 +456,6 @@ function createCase(formData, estimate) {
       isFirstApplication: formData.isFirstApplication,
       attachments: formData.attachments || [],
       attachmentOther: formData.attachmentOther || "",
-      notes: formData.notes,
     },
     estimate,
     internal: {
@@ -837,7 +836,7 @@ function buildOfficialApplication(caseData) {
         <tr><th>電話</th><td>${customer.phone || ""}</td><th>傳真</th><td>${customer.fax || ""}</td></tr>
         <tr><th>行動電話</th><td>${customer.mobile || ""}</td><th></th><td></td></tr>
         <tr><th>測試件名稱</th><td>${sample.sampleName}</td><th>測試件數量</th><td>${sample.sampleQty}</td></tr>
-        <tr><th>測試件描述</th><td colspan="3">${sample.material || sample.notes || ""}</td></tr>
+        <tr><th>測試件描述</th><td colspan="3">${sample.material || ""}</td></tr>
         <tr><th>剩餘測試件處理</th><td>${sample.sampleReturn || ""}</td><th>報告取件方式</th><td>${sample.reportDelivery || ""}</td></tr>
         <tr><th>案件類型</th><td>${sample.caseType || "一般件"}</td><th>首次申請</th><td>${sample.isFirstApplication === "yes" ? "是" : "否"}</td></tr>
         <tr><th>檢附證件</th><td colspan="3">${[
