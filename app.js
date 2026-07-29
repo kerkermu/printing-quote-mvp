@@ -110,7 +110,17 @@ const demoUser = {
 };
 
 const defaultTestIds = new Set(["paper-weight", "paper-whiteness", "paper-opacity"]);
-const casesResetVersion = "20260729-clear-cases";
+const casesResetVersion = "20260729-clear-cases-v2";
+const internalSteps = [
+  "收到申請書",
+  "寄出報價單",
+  "廠商回簽報價單",
+  "製作申請簽呈",
+  "送出申請簽呈",
+  "完成申請簽呈",
+  "建立檢測細目",
+  "寄送測試報告",
+];
 
 if (localStorage.getItem("ptri_cases_reset_version") !== casesResetVersion) {
   localStorage.setItem("ptri_cases", "[]");
@@ -333,6 +343,16 @@ function createCase(formData, estimate) {
       notes: formData.notes,
     },
     estimate,
+    internal: {
+      confirmed: false,
+      paymentStatus: "未確認",
+      note: "",
+      steps: internalSteps.map((name) => ({
+        name,
+        done: false,
+        completedAt: "",
+      })),
+    },
   };
 }
 
@@ -407,21 +427,143 @@ function renderKanban() {
   const cases = state.cases.length ? state.cases : [];
   kanban.innerHTML =
     cases
-      .map(
-        (item) => `
-        <article class="case-card">
-          <div>
-            <h4>${item.caseNo}</h4>
-            <p>${item.customer.companyName}｜${item.sample.sampleName}</p>
-            <p>廠商文件：申請書、報價單；內部文件由後台處理</p>
-          </div>
-          <div>
-            <span class="status">${item.status}</span>
-          </div>
-        </article>
-      `
-      )
+      .map((item) => buildInternalCaseCard(ensureInternalCase(item)))
       .join("") || `<p class="fine-print">尚無案件。</p>`;
+}
+
+function ensureInternalCase(caseData) {
+  if (!caseData) return null;
+  if (!caseData.internal) {
+    caseData.internal = {};
+  }
+  if (!Array.isArray(caseData.internal.steps)) {
+    caseData.internal.steps = [];
+  }
+  caseData.internal.steps = internalSteps.map((name) => {
+    const existing = caseData.internal.steps.find((step) => step.name === name);
+    return {
+      name,
+      done: Boolean(existing?.done),
+      completedAt: existing?.completedAt || "",
+    };
+  });
+  caseData.internal.confirmed = Boolean(caseData.internal.confirmed);
+  caseData.internal.paymentStatus = caseData.internal.paymentStatus || "未確認";
+  caseData.internal.note = caseData.internal.note || "";
+  return caseData;
+}
+
+function internalProgress(caseData) {
+  const steps = ensureInternalCase(caseData).internal.steps;
+  const done = steps.filter((step) => step.done).length;
+  return {
+    done,
+    total: steps.length,
+    percent: steps.length ? Math.round((done / steps.length) * 100) : 0,
+  };
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleString("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function buildInternalCaseCard(caseData) {
+  const progress = internalProgress(caseData);
+  const submission = caseData.submission;
+  const files = submission?.files || [];
+  const submittedAt = submission?.submittedAt ? formatDateTime(submission.submittedAt) : "尚未回傳";
+  const statusOptions = ["待確認", "已回傳", "已確認", "缺件", "待付款", "已收款", "檢測中", "已結案"];
+  const paymentOptions = ["未確認", "未開發票未付款", "未開發票已付款", "已開發票未付款", "已開發票已付款", "確認中"];
+
+  return `
+    <article class="internal-card">
+      <header class="internal-card-header">
+        <div>
+          <p class="eyebrow">${caseData.caseNo}</p>
+          <h4>${caseData.customer.companyName}</h4>
+          <p>${caseData.sample.sampleName}｜${caseData.estimate.items.length} 項｜${money(caseData.estimate.total)}</p>
+        </div>
+        <span class="status">${caseData.status}</span>
+      </header>
+
+      <div class="internal-meta">
+        <span>聯絡人：${caseData.customer.contactName || ""}</span>
+        <span>電話：${caseData.customer.phone || ""}</span>
+        <span>回傳：${submittedAt}</span>
+        <span>付款：${caseData.internal.paymentStatus}</span>
+      </div>
+
+      <div class="internal-progress">
+        <div>
+          <strong>內部進度</strong>
+          <span>${progress.done}/${progress.total} 完成</span>
+        </div>
+        <div class="progress-track"><span style="width:${progress.percent}%"></span></div>
+      </div>
+
+      <div class="internal-files">
+        <strong>廠商回傳文件</strong>
+        ${
+          files.length
+            ? files.map((file) => `<span>${file}</span>`).join("")
+            : `<span class="muted-inline">尚未回傳簽章文件</span>`
+        }
+        ${submission?.note ? `<small>備註：${submission.note}</small>` : ""}
+      </div>
+
+      <div class="internal-controls">
+        <label>
+          案件狀態
+          <select data-internal-status="${caseData.id}">
+            ${statusOptions
+              .map((status) => `<option value="${status}" ${caseData.status === status ? "selected" : ""}>${status}</option>`)
+              .join("")}
+          </select>
+        </label>
+        <label>
+          付款狀態
+          <select data-internal-payment="${caseData.id}">
+            ${paymentOptions
+              .map(
+                (status) =>
+                  `<option value="${status}" ${caseData.internal.paymentStatus === status ? "selected" : ""}>${status}</option>`
+              )
+              .join("")}
+          </select>
+        </label>
+      </div>
+
+      <div class="internal-steps">
+        ${caseData.internal.steps
+          .map(
+            (step, index) => `
+              <label class="internal-step ${step.done ? "done" : ""}">
+                <input
+                  type="checkbox"
+                  data-internal-step="${caseData.id}"
+                  data-step-index="${index}"
+                  ${step.done ? "checked" : ""}
+                />
+                <span>${step.name}</span>
+                ${step.completedAt ? `<small>${formatDateTime(step.completedAt)}</small>` : ""}
+              </label>
+            `
+          )
+          .join("")}
+      </div>
+
+      <label class="internal-note">
+        內部備註
+        <textarea data-internal-note="${caseData.id}" rows="2" placeholder="例如：待補公司執照影本、已電話確認付款。">${caseData.internal.note}</textarea>
+      </label>
+    </article>
+  `;
 }
 
 function itemRows(caseData) {
@@ -854,6 +996,50 @@ function bindEvents() {
         setView("submission");
       }
     }
+  });
+
+  document.body.addEventListener("change", (event) => {
+    const stepCaseId = event.target.dataset.internalStep;
+    if (stepCaseId) {
+      const caseData = ensureInternalCase(state.cases.find((item) => item.id === stepCaseId));
+      if (!caseData) return;
+      const step = caseData.internal.steps[Number(event.target.dataset.stepIndex)];
+      step.done = event.target.checked;
+      step.completedAt = step.done ? new Date().toISOString() : "";
+      saveState();
+      renderKanban();
+      return;
+    }
+
+    const statusCaseId = event.target.dataset.internalStatus;
+    if (statusCaseId) {
+      const caseData = ensureInternalCase(state.cases.find((item) => item.id === statusCaseId));
+      if (!caseData) return;
+      caseData.status = event.target.value;
+      saveState();
+      renderCases();
+      renderKanban();
+      renderSubmission();
+      return;
+    }
+
+    const paymentCaseId = event.target.dataset.internalPayment;
+    if (paymentCaseId) {
+      const caseData = ensureInternalCase(state.cases.find((item) => item.id === paymentCaseId));
+      if (!caseData) return;
+      caseData.internal.paymentStatus = event.target.value;
+      saveState();
+      renderKanban();
+    }
+  });
+
+  document.body.addEventListener("input", (event) => {
+    const noteCaseId = event.target.dataset.internalNote;
+    if (!noteCaseId) return;
+    const caseData = ensureInternalCase(state.cases.find((item) => item.id === noteCaseId));
+    if (!caseData) return;
+    caseData.internal.note = event.target.value;
+    saveState();
   });
 
   $("#submissionForm").addEventListener("submit", submitSignedDocuments);

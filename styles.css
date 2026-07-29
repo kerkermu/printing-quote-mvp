@@ -906,6 +906,156 @@ select:focus {
   gap: 18px;
 }
 
+.internal-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.internal-card + .internal-card {
+  margin-top: 14px;
+}
+
+.internal-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+}
+
+.internal-card-header h4,
+.internal-card-header p {
+  margin: 0;
+}
+
+.internal-card-header h4 {
+  margin: 4px 0 6px;
+  font-size: 18px;
+}
+
+.internal-meta,
+.internal-controls {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.internal-meta span {
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #f6fafb;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.internal-progress {
+  display: grid;
+  gap: 8px;
+}
+
+.internal-progress > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.internal-progress strong {
+  color: var(--ink);
+}
+
+.progress-track {
+  overflow: hidden;
+  height: 9px;
+  border-radius: 999px;
+  background: #dce7ea;
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+}
+
+.internal-files {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background: #f8fbfc;
+}
+
+.internal-files strong {
+  flex: 0 0 100%;
+}
+
+.internal-files span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #eef6f8;
+  color: var(--brand-dark);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.internal-files .muted-inline {
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.internal-files small {
+  flex: 0 0 100%;
+  color: var(--muted);
+}
+
+.internal-controls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.internal-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.internal-step {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.internal-step.done {
+  border-color: #b9d8dc;
+  background: #f0f8f8;
+  color: var(--brand-dark);
+}
+
+.internal-step small {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.internal-note {
+  display: grid;
+  gap: 8px;
+}
+
 .checklist {
   padding-left: 20px;
   line-height: 1.9;
@@ -1202,6 +1352,12 @@ dialog::backdrop {
   }
 
   .test-list {
+    grid-template-columns: 1fr;
+  }
+
+  .internal-meta,
+  .internal-controls,
+  .internal-steps {
     grid-template-columns: 1fr;
   }
 }
