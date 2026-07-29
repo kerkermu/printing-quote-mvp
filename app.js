@@ -110,7 +110,7 @@ const demoUser = {
 };
 
 const defaultTestIds = new Set(["paper-weight", "paper-whiteness", "paper-opacity"]);
-const casesResetVersion = "20260729-clear-cases-v2";
+const casesResetVersion = "20260729-clear-cases-v3";
 const internalSteps = [
   "收到申請書",
   "寄出報價單",
@@ -303,6 +303,100 @@ function calculateEstimate() {
   };
 }
 
+function requiredFieldRules() {
+  return [
+    ["companyName", "廠商名稱"],
+    ["taxId", "統一編號"],
+    ["contactName", "聯絡人"],
+    ["email", "電子郵件"],
+    ["phone", "電話"],
+    ["address", "公司地址"],
+    ["invoiceAddress", "發票地址"],
+    ["sampleName", "測試件名稱"],
+    ["sampleQty", "測試件數量"],
+    ["material", "測試件描述"],
+    ["sampleReturn", "剩餘測試件處理"],
+    ["reportDelivery", "報告取件方式"],
+    ["caseType", "檢測案件類型"],
+    ["isFirstApplication", "是否首次申請"],
+    ["serviceType", "檢測類型"],
+    ["categoryFilter", "檢測類別"],
+  ];
+}
+
+function clearValidationState(form) {
+  $$("[aria-invalid='true']").forEach((input) => input.removeAttribute("aria-invalid"));
+  form.querySelector(".form-error-summary")?.remove();
+}
+
+function markInvalid(input) {
+  if (!input) return;
+  input.setAttribute("aria-invalid", "true");
+}
+
+function showValidationErrors(form, messages, firstInvalidInput) {
+  clearValidationState(form);
+  const summary = document.createElement("div");
+  summary.className = "form-error-summary";
+  summary.innerHTML = `
+    <strong>請先補齊必填欄位</strong>
+    <ul>${messages.map((message) => `<li>${message}</li>`).join("")}</ul>
+  `;
+  form.prepend(summary);
+  firstInvalidInput?.scrollIntoView({ behavior: "smooth", block: "center" });
+  firstInvalidInput?.focus({ preventScroll: true });
+}
+
+function validateQuoteForm(form, formData, estimate) {
+  const messages = [];
+  let firstInvalidInput = null;
+  const addError = (message, input) => {
+    messages.push(message);
+    if (input && !firstInvalidInput) firstInvalidInput = input;
+    markInvalid(input);
+  };
+
+  requiredFieldRules().forEach(([name, label]) => {
+    const input = form.elements[name];
+    const value = String(formData[name] || "").trim();
+    if (!value) addError(`${label}未填寫`, input);
+  });
+
+  const emailInput = form.elements.email;
+  if (String(formData.email || "").trim() && !emailInput.checkValidity()) {
+    addError("電子郵件格式不正確", emailInput);
+  }
+
+  ["extraChineseReports", "englishReports"].forEach((name) => {
+    const input = form.elements[name];
+    const value = Number(input.value || 0);
+    if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+      addError(`${name === "extraChineseReports" ? "中文報告加購份數" : "英文報告份數"}請填 0 以上整數`, input);
+    }
+  });
+
+  if (!estimate.items.length) {
+    addError("請至少選擇一個檢測項目", $("#testList"));
+  }
+
+  const attachments = formData.attachments || [];
+  if (formData.isFirstApplication === "yes" && attachments.length === 0) {
+    addError("首次申請檢測時，檢附證件至少需提供其中一項", form.querySelector('input[name="attachments"]'));
+  }
+
+  if (attachments.includes("其他") && !String(formData.attachmentOther || "").trim()) {
+    addError("檢附證件選擇其他時，請填寫其他證件名稱", form.elements.attachmentOther);
+  }
+
+  if (messages.length) {
+    showValidationErrors(form, messages, firstInvalidInput);
+    return false;
+  }
+
+  clearValidationState(form);
+  return true;
+}
+
 function createCase(formData, estimate) {
   const now = new Date();
   const caseNo = `PTRI-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(
@@ -358,15 +452,11 @@ function createCase(formData, estimate) {
 
 async function submitQuote(event) {
   event.preventDefault();
-  const submitButton = event.submitter || event.currentTarget.querySelector('button[type="submit"]');
+  const form = event.currentTarget;
+  const submitButton = event.submitter || form.querySelector('button[type="submit"]');
   const estimate = calculateEstimate();
-  if (estimate.items.length === 0) {
-    alert("請至少選擇一個檢測項目。");
-    return;
-  }
-  const formData = readForm(event.currentTarget);
-  if (formData.isFirstApplication === "yes" && formData.attachments.length === 0) {
-    alert("首次申請檢測廠商須至少勾選一項檢附證件。");
+  const formData = readForm(form);
+  if (!validateQuoteForm(form, formData, estimate)) {
     return;
   }
 
@@ -954,6 +1044,8 @@ async function submitSignedDocuments(event) {
 }
 
 function bindEvents() {
+  $("#quoteForm").noValidate = true;
+
   $$(".nav-item").forEach((button) => {
     button.addEventListener("click", () => setView(button.dataset.view));
   });

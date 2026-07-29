@@ -224,25 +224,25 @@
                 </label>
                 <label>
                   測試件狀態描述
-                  <input name="material" value="紙張" />
+                  <input required name="material" value="紙張" />
                 </label>
                 <label>
                   剩餘測試件處理方式
-                  <select name="sampleReturn">
+                  <select required name="sampleReturn">
                     <option>取回</option>
                     <option selected>不取回</option>
                   </select>
                 </label>
                 <label>
                   正式紙本報告取件方式
-                  <select name="reportDelivery">
+                  <select required name="reportDelivery">
                     <option>自取</option>
                     <option selected>郵寄</option>
                   </select>
                 </label>
                 <label>
                   案件類型
-                  <select name="caseType">
+                  <select required name="caseType">
                     <option>一般件</option>
                     <option>急件</option>
                     <option>特急件</option>
@@ -250,7 +250,7 @@
                 </label>
                 <label>
                   是否為廠商首次申請檢測
-                  <select name="isFirstApplication">
+                  <select required name="isFirstApplication">
                     <option value="no">否，曾申請過</option>
                     <option value="yes">是，首次申請</option>
                   </select>
@@ -298,14 +298,14 @@
                 <div class="inline-controls">
                   <label>
                     檢測類型
-                    <select id="serviceType" name="serviceType">
+                    <select required id="serviceType" name="serviceType">
                       <option value="paper">紙張適性檢測</option>
                       <option value="ink">印刷品及油墨適性檢測</option>
                     </select>
                   </label>
                   <label>
                     類別
-                    <select id="categoryFilter" name="categoryFilter"></select>
+                    <select required id="categoryFilter" name="categoryFilter"></select>
                   </label>
                 </div>
               </div>
