@@ -227,10 +227,20 @@ function markRequiredFields() {
   form.querySelectorAll("[required]").forEach((input) => {
     const label = input.closest("label");
     if (!label || label.querySelector(".required-mark")) return;
+    const title = document.createElement("span");
+    title.className = "field-label-text";
     const mark = document.createElement("span");
     mark.className = "required-mark";
     mark.textContent = "*";
-    label.insertBefore(mark, input);
+
+    let node = label.firstChild;
+    while (node && node !== input) {
+      const next = node.nextSibling;
+      title.appendChild(node);
+      node = next;
+    }
+    title.appendChild(mark);
+    label.insertBefore(title, input);
   });
 }
 

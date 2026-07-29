@@ -514,9 +514,15 @@ label {
   font-weight: 900;
 }
 
+.field-label-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
 .required-mark {
   display: inline-block;
-  margin-left: 4px;
+  line-height: 1;
 }
 
 .check-label {
