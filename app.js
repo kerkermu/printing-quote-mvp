@@ -110,6 +110,12 @@ const demoUser = {
 };
 
 const defaultTestIds = new Set(["paper-weight", "paper-whiteness", "paper-opacity"]);
+const casesResetVersion = "20260729-clear-cases";
+
+if (localStorage.getItem("ptri_cases_reset_version") !== casesResetVersion) {
+  localStorage.setItem("ptri_cases", "[]");
+  localStorage.setItem("ptri_cases_reset_version", casesResetVersion);
+}
 
 const state = {
   user: JSON.parse(localStorage.getItem("ptri_user") || JSON.stringify(demoUser)),
