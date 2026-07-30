@@ -43,6 +43,10 @@
             <h2 id="viewTitle">印刷適性實驗室線上申請與報價</h2>
           </div>
           <div class="utility-actions">
+            <div class="mode-switch" aria-label="使用模式">
+              <button class="mode-button active" type="button" data-mode-option="vendor">廠商模式</button>
+              <button class="mode-button" type="button" data-mode-option="internal">同仁模式</button>
+            </div>
             <button class="ghost-button small-button" type="button">列印</button>
             <button class="ghost-button small-button" type="button">Email</button>
             <button class="ghost-button" id="resetDemoBtn" type="button">重置 demo</button>
@@ -349,6 +353,10 @@
             </div>
             <div class="case-list" id="caseList"></div>
           </div>
+        </section>
+
+        <section class="view" id="caseDetailView">
+          <div class="panel case-detail" id="caseDetail"></div>
         </section>
 
         <section class="view" id="submissionView">

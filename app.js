@@ -158,6 +158,7 @@ const state = {
   user: JSON.parse(localStorage.getItem("ptri_user") || JSON.stringify(demoUser)),
   cases: JSON.parse(localStorage.getItem("ptri_cases") || "[]"),
   activeCase: null,
+  mode: localStorage.getItem("ptri_mode") || "vendor",
 };
 
 if (state.user?.email === "customer@example.com" || state.user?.companyName === demoUser.companyName) {
@@ -177,6 +178,35 @@ const money = (value) =>
 function saveState() {
   localStorage.setItem("ptri_user", JSON.stringify(state.user));
   localStorage.setItem("ptri_cases", JSON.stringify(state.cases));
+  localStorage.setItem("ptri_mode", state.mode);
+}
+
+function isInternalMode() {
+  return state.mode === "internal";
+}
+
+function syncModeUi() {
+  document.body.dataset.mode = state.mode;
+  $$(".mode-button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.modeOption === state.mode);
+  });
+}
+
+function setMode(mode) {
+  state.mode = mode === "internal" ? "internal" : "vendor";
+  saveState();
+  syncModeUi();
+  if (state.mode === "vendor" && ["admin", "settings"].includes(currentViewName())) {
+    setView("quote");
+  }
+  if (state.mode === "internal" && ["quote", "submission"].includes(currentViewName())) {
+    setView("admin");
+  }
+}
+
+function currentViewName() {
+  const activeView = $(".view.active");
+  return activeView?.id?.replace(/View$/, "") || "quote";
 }
 
 function markInternalStep(caseData, stepName, done = true) {
@@ -210,6 +240,7 @@ function setView(viewName) {
     login: "客戶登入",
     quote: "印刷適性實驗室線上申請與報價",
     cases: "我的案件",
+    caseDetail: "案件明細",
     submission: "簽章文件繳交專區",
     admin: "內部後台",
     settings: "帳戶資料",
@@ -217,6 +248,7 @@ function setView(viewName) {
   $("#viewTitle").textContent = titles[viewName] || "檢測線上報價";
 
   if (viewName === "cases") renderCases();
+  if (viewName === "caseDetail") renderCaseDetail();
   if (viewName === "submission") renderSubmission();
   if (viewName === "admin") renderKanban();
   if (viewName === "settings") fillProfileForm();
@@ -567,12 +599,134 @@ function renderCases() {
         </div>
         <div>
           <span class="status">${item.status}</span>
+          <button class="ghost-button" type="button" data-view-case="${item.id}">查看明細</button>
           <button class="ghost-button" type="button" data-submit-case="${item.id}">繳交</button>
         </div>
       </article>
     `
     )
     .join("");
+}
+
+function renderCaseDetail() {
+  const panel = $("#caseDetail");
+  const caseData = ensureInternalCase(state.activeCase || state.cases[0]);
+  if (!panel) return;
+  if (!caseData) {
+    panel.innerHTML = `
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Case Detail</p>
+          <h3>尚無案件資料</h3>
+        </div>
+        <button class="ghost-button" type="button" data-back-cases>返回案件列表</button>
+      </div>
+      <p class="fine-print">請先建立一筆檢測詢價案件。</p>
+    `;
+    return;
+  }
+
+  const { customer, sample, estimate } = caseData;
+  const submission = caseData.submission;
+  const files = submission?.files || [];
+  const progress = internalProgress(caseData);
+  panel.innerHTML = `
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">${caseData.caseNo}</p>
+        <h3>${customer.companyName}｜${sample.sampleName}</h3>
+      </div>
+      <div class="detail-actions">
+        <span class="status">${caseData.status}</span>
+        <button class="ghost-button" type="button" data-back-cases>返回案件列表</button>
+      </div>
+    </div>
+
+    <div class="detail-grid">
+      <section class="detail-block">
+        <h4>客戶資料</h4>
+        <dl>
+          <div><dt>公司名稱</dt><dd>${customer.companyName || ""}</dd></div>
+          <div><dt>統一編號</dt><dd>${customer.taxId || ""}</dd></div>
+          <div><dt>聯絡人</dt><dd>${customer.contactName || ""}</dd></div>
+          <div><dt>Email</dt><dd>${customer.email || ""}</dd></div>
+          <div><dt>電話</dt><dd>${customer.phone || ""}</dd></div>
+          <div><dt>傳真</dt><dd>${customer.fax || ""}</dd></div>
+          <div><dt>公司地址</dt><dd>${customer.address || ""}</dd></div>
+          <div><dt>發票地址</dt><dd>${customer.invoiceAddress || ""}</dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-block">
+        <h4>樣品與回傳</h4>
+        <dl>
+          <div><dt>測試件名稱</dt><dd>${sample.sampleName || ""}</dd></div>
+          <div><dt>測試件數量</dt><dd>${sample.sampleQty || ""}</dd></div>
+          <div><dt>狀態描述</dt><dd>${sample.material || ""}</dd></div>
+          <div><dt>剩餘測試件處理</dt><dd>${sample.sampleReturn || ""}</dd></div>
+          <div><dt>報告取件方式</dt><dd>${sample.reportDelivery || ""}</dd></div>
+          <div><dt>案件類型</dt><dd>${sample.caseType || ""}</dd></div>
+          <div><dt>中文加購</dt><dd>${sample.extraChineseReports || 0} 份</dd></div>
+          <div><dt>英文報告</dt><dd>${sample.englishReports || 0} 份</dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-block full-row">
+        <h4>檢測項目與費用</h4>
+        <div class="detail-items">
+          ${estimate.items
+            .map(
+              (item, index) => `
+                <div>
+                  <strong>${index + 1}. ${item.name}</strong>
+                  <span>${item.method}｜${money(item.price)} / ${item.unit.replace("元 / ", "")}</span>
+                </div>
+              `
+            )
+            .join("")}
+        </div>
+        <dl class="detail-totals">
+          <div><dt>檢測費用</dt><dd>${money(estimate.subtotal || 0)}</dd></div>
+          <div><dt>報告加購</dt><dd>${money(estimate.reportFee || 0)}</dd></div>
+          <div><dt>急件加成</dt><dd>${money(estimate.urgent || 0)}</dd></div>
+          <div><dt>含稅總額</dt><dd>${money(estimate.total || 0)}</dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-block">
+        <h4>文件狀態</h4>
+        <dl>
+          <div><dt>申請日期</dt><dd>${new Date(caseData.createdAt).toLocaleDateString("zh-TW")}</dd></div>
+          <div><dt>報價確認</dt><dd>${caseData.internal.quoteApprovedAt ? formatDateTime(caseData.internal.quoteApprovedAt) : "尚未確認"}</dd></div>
+          <div><dt>報價寄出</dt><dd>${caseData.internal.quoteSentAt ? formatDateTime(caseData.internal.quoteSentAt) : "尚未寄出"}</dd></div>
+          <div><dt>回傳時間</dt><dd>${submission?.submittedAt ? formatDateTime(submission.submittedAt) : "尚未回傳"}</dd></div>
+          <div><dt>歸檔位置</dt><dd>${submission?.archiveDir || "尚未歸檔"}</dd></div>
+        </dl>
+        <div class="uploaded-list compact">
+          <strong>回傳檔案</strong>
+          ${files.length ? files.map((file) => `<span>${file}</span>`).join("") : `<span>尚未回傳</span>`}
+        </div>
+      </section>
+
+      ${
+        isInternalMode()
+          ? `<section class="detail-block internal-only">
+              <h4>內部處理</h4>
+              <dl>
+                <div><dt>付款狀態</dt><dd>${caseData.internal.paymentStatus}</dd></div>
+                <div><dt>內部進度</dt><dd>${progress.done}/${progress.total} 完成</dd></div>
+                <div><dt>內部備註</dt><dd>${caseData.internal.note || "尚無備註"}</dd></div>
+              </dl>
+              <div class="detail-items">
+                ${caseData.internal.steps
+                  .map((step) => `<div><strong>${step.done ? "已完成" : "待處理"}｜${step.name}</strong><span>${step.completedAt ? formatDateTime(step.completedAt) : ""}</span></div>`)
+                  .join("")}
+              </div>
+            </section>`
+          : ""
+      }
+    </div>
+  `;
 }
 
 function renderKanban() {
@@ -666,6 +820,7 @@ function buildInternalCaseCard(caseData) {
       </div>
 
       <div class="internal-actions">
+        <button class="ghost-button" type="button" data-view-case="${caseData.id}">查看明細</button>
         <button class="ghost-button" type="button" data-download-doc="${caseData.id}" data-doc-type="application">下載申請書</button>
         <button class="ghost-button" type="button" data-download-doc="${caseData.id}" data-doc-type="quote">下載報價單</button>
         <button class="ghost-button" type="button" data-print-memo="${caseData.id}">產生內部簽呈</button>
@@ -1186,6 +1341,10 @@ function bindEvents() {
     button.addEventListener("click", () => setView(button.dataset.view));
   });
 
+  $$(".mode-button").forEach((button) => {
+    button.addEventListener("click", () => setMode(button.dataset.modeOption));
+  });
+
   $("#loginForm").addEventListener("submit", (event) => {
     event.preventDefault();
     state.user = readForm(event.currentTarget);
@@ -1216,6 +1375,21 @@ function bindEvents() {
   });
 
   document.body.addEventListener("click", (event) => {
+    const viewCaseId = event.target.dataset.viewCase;
+    if (viewCaseId) {
+      const caseData = state.cases.find((item) => item.id === viewCaseId);
+      if (caseData) {
+        state.activeCase = caseData;
+        setView("caseDetail");
+      }
+      return;
+    }
+
+    if (event.target.dataset.backCases !== undefined) {
+      setView(isInternalMode() ? "admin" : "cases");
+      return;
+    }
+
     const submitCaseId = event.target.dataset.submitCase;
     if (submitCaseId) {
       const caseData = state.cases.find((item) => item.id === submitCaseId);
@@ -1342,8 +1516,9 @@ function init() {
   markRequiredFields();
   bindEvents();
   syncAccountUi();
+  syncModeUi();
   calculateEstimate();
-  setView(state.user ? "quote" : "login");
+  setView(state.user ? (isInternalMode() ? "admin" : "quote") : "login");
 }
 
 init();
