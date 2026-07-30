@@ -49,6 +49,7 @@
             </div>
             <button class="ghost-button small-button" type="button">列印</button>
             <button class="ghost-button small-button" type="button">Email</button>
+            <button class="ghost-button small-button" id="logoutBtn" type="button">登出</button>
             <button class="ghost-button" id="resetDemoBtn" type="button">重置 demo</button>
           </div>
         </header>
@@ -98,49 +99,92 @@
             </div>
           </div>
 
-          <form class="panel form-grid" id="loginForm">
-            <label>
-              Email
-              <input required name="email" type="email" value="ken.ding@msa.hinet.net" />
-            </label>
-            <label>
-              公司名稱
-              <input required name="companyName" value="肯定實業股份有限公司" />
-            </label>
-            <label>
-              統一編號
-              <input required name="taxId" value="86106811" />
-            </label>
-            <label>
-              聯絡人
-              <input required name="contactName" value="洪昭治" />
-            </label>
-            <label>
-              聯絡電話
-              <input required name="phone" value="02-82457355 #200" />
-            </label>
-            <label>
-              行動電話
-              <input name="mobile" value="0922451707" />
-            </label>
-            <label>
-              職稱
-              <input name="jobTitle" value="" />
-            </label>
-            <label>
-              公司地址
-              <input required name="address" value="新北市中和區連城路160號後棟" />
-            </label>
-            <label>
-              發票地址
-              <input required name="invoiceAddress" value="新北市中和區連城路160號後棟" />
-            </label>
-            <label>
-              傳真
-              <input name="fax" value="02-82457320" />
-            </label>
-            <button class="primary-button full-row" type="submit">登入並開始詢價</button>
-          </form>
+          <div class="auth-layout">
+            <section class="panel auth-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Member Login</p>
+                  <h3>會員登入</h3>
+                </div>
+              </div>
+              <form class="form-grid" id="memberLoginForm">
+                <label class="full-row">
+                  Email 帳號
+                  <input required name="email" type="email" autocomplete="username" value="ken.ding@msa.hinet.net" />
+                </label>
+                <label class="full-row">
+                  密碼
+                  <input required name="password" type="password" autocomplete="current-password" value="PtriDemo2026" />
+                </label>
+                <button class="primary-button full-row" type="submit">登入並開始詢價</button>
+                <button class="ghost-button full-row" id="useDemoMemberBtn" type="button">使用展示帳號</button>
+              </form>
+            </section>
+
+            <section class="panel auth-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Member Register</p>
+                  <h3>會員註冊</h3>
+                </div>
+              </div>
+              <form class="form-grid" id="registerForm">
+                <label>
+                  中文姓名
+                  <input required name="cName" placeholder="請輸入真實中文姓名" />
+                </label>
+                <label>
+                  英文姓名
+                  <input name="englishName" placeholder="請輸入英文姓名" />
+                </label>
+                <label>
+                  Email 帳號
+                  <input required name="email" type="email" placeholder="未來登入本系統的帳號" autocomplete="username" />
+                </label>
+                <label>
+                  公司名稱
+                  <input required name="companyName" placeholder="請輸入公司名稱" />
+                </label>
+                <label>
+                  密碼
+                  <input required name="password" type="password" placeholder="12~20 個英數字混合字元" autocomplete="new-password" />
+                </label>
+                <label>
+                  確認密碼
+                  <input required name="confirmPassword" type="password" placeholder="請再一次輸入密碼" autocomplete="new-password" />
+                </label>
+                <label>
+                  統一編號
+                  <input required name="taxId" />
+                </label>
+                <label>
+                  電話
+                  <input required name="phone" placeholder="請輸入電話" />
+                </label>
+                <label>
+                  分機
+                  <input name="extension" placeholder="請輸入分機" />
+                </label>
+                <label>
+                  行動電話
+                  <input name="mobile" placeholder="請輸入行動電話" />
+                </label>
+                <label>
+                  公司地址
+                  <input required name="address" />
+                </label>
+                <label>
+                  發票地址
+                  <input required name="invoiceAddress" />
+                </label>
+                <label class="full-row check-label privacy-check">
+                  <input required name="privacyConfirm" type="checkbox" />
+                  同意提供資料供檢測申請、報價與案件聯絡使用
+                </label>
+                <button class="primary-button full-row" type="submit">建立會員並開始詢價</button>
+              </form>
+            </section>
+          </div>
         </section>
 
         <section class="view" id="quoteView">

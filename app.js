@@ -109,6 +109,15 @@ const demoUser = {
   fax: "02-82457320",
 };
 
+const demoMember = {
+  ...demoUser,
+  id: "demo-member",
+  cName: demoUser.contactName,
+  englishName: "",
+  extension: "200",
+  password: "PtriDemo2026",
+};
+
 const defaultTestIds = new Set(["paper-weight", "paper-whiteness", "paper-opacity"]);
 const casesResetVersion = "20260729-clear-cases-v5";
 const caseStatuses = [
@@ -155,7 +164,8 @@ if (localStorage.getItem("ptri_cases_reset_version") !== casesResetVersion) {
 }
 
 const state = {
-  user: JSON.parse(localStorage.getItem("ptri_user") || JSON.stringify(demoUser)),
+  user: JSON.parse(localStorage.getItem("ptri_user") || "null"),
+  members: JSON.parse(localStorage.getItem("ptri_members") || "null") || [demoMember],
   cases: JSON.parse(localStorage.getItem("ptri_cases") || "[]"),
   activeCase: null,
   mode: localStorage.getItem("ptri_mode") || "vendor",
@@ -177,8 +187,42 @@ const money = (value) =>
 
 function saveState() {
   localStorage.setItem("ptri_user", JSON.stringify(state.user));
+  localStorage.setItem("ptri_members", JSON.stringify(state.members));
   localStorage.setItem("ptri_cases", JSON.stringify(state.cases));
   localStorage.setItem("ptri_mode", state.mode);
+}
+
+function memberToUser(member) {
+  const phone = member.extension && !String(member.phone || "").includes("#") ? `${member.phone} #${member.extension}` : member.phone;
+  return {
+    email: member.email,
+    companyName: member.companyName,
+    taxId: member.taxId,
+    contactName: member.cName || member.contactName || "",
+    phone,
+    mobile: member.mobile || "",
+    jobTitle: member.jobTitle || "",
+    address: member.address || "",
+    invoiceAddress: member.invoiceAddress || member.address || "",
+    fax: member.fax || "",
+  };
+}
+
+function loginMember(member) {
+  state.user = memberToUser(member);
+  state.mode = "vendor";
+  saveState();
+  syncAccountUi();
+  syncModeUi();
+  setView("quote");
+}
+
+function findMemberByEmail(email) {
+  return state.members.find((member) => member.email.toLowerCase() === String(email).trim().toLowerCase());
+}
+
+function isValidMemberPassword(password) {
+  return /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{12,20}$/.test(password);
 }
 
 function isInternalMode() {
@@ -255,6 +299,7 @@ function setView(viewName) {
 }
 
 function syncAccountUi() {
+  document.body.classList.toggle("is-authenticated", Boolean(state.user));
   $("#currentCompany").textContent = state.user?.companyName || "尚未登入";
   $("#currentEmail").textContent = state.user?.email || "請先建立 demo 帳號";
   if (state.user) fillQuoteCustomer();
@@ -1334,6 +1379,58 @@ async function submitSignedDocuments(event) {
   alert("已收到回傳資料，待印研中心同仁確認。");
 }
 
+function submitMemberLogin(event) {
+  event.preventDefault();
+  const data = readForm(event.currentTarget);
+  const member = findMemberByEmail(data.email);
+  if (!member || member.password !== data.password) {
+    alert("帳號或密碼不正確。");
+    return;
+  }
+  loginMember(member);
+}
+
+function submitMemberRegister(event) {
+  event.preventDefault();
+  const data = readForm(event.currentTarget);
+  if (findMemberByEmail(data.email)) {
+    alert("此 Email 已註冊，請改用登入。");
+    return;
+  }
+  if (!isValidMemberPassword(data.password)) {
+    alert("密碼需為 12~20 個英數字混合字元。");
+    return;
+  }
+  if (data.password !== data.confirmPassword) {
+    alert("兩次輸入的密碼不一致。");
+    return;
+  }
+  if (!data.privacyConfirm) {
+    alert("請先勾選資料使用同意。");
+    return;
+  }
+
+  const member = {
+    id: crypto.randomUUID(),
+    cName: data.cName,
+    englishName: data.englishName || "",
+    email: data.email,
+    password: data.password,
+    companyName: data.companyName,
+    taxId: data.taxId,
+    phone: data.phone,
+    extension: data.extension || "",
+    mobile: data.mobile || "",
+    jobTitle: "",
+    address: data.address,
+    invoiceAddress: data.invoiceAddress || data.address,
+    fax: "",
+  };
+  state.members.push(member);
+  event.currentTarget.reset();
+  loginMember(member);
+}
+
 function bindEvents() {
   $("#quoteForm").noValidate = true;
 
@@ -1345,17 +1442,33 @@ function bindEvents() {
     button.addEventListener("click", () => setMode(button.dataset.modeOption));
   });
 
-  $("#loginForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    state.user = readForm(event.currentTarget);
-    saveState();
+  $("#memberLoginForm").addEventListener("submit", submitMemberLogin);
+  $("#registerForm").addEventListener("submit", submitMemberRegister);
+  $("#useDemoMemberBtn").addEventListener("click", () => loginMember(demoMember));
+  $("#logoutBtn").addEventListener("click", () => {
+    state.user = null;
+    localStorage.removeItem("ptri_user");
     syncAccountUi();
-    setView("quote");
+    setView("login");
   });
 
   $("#profileForm").addEventListener("submit", (event) => {
     event.preventDefault();
     state.user = readForm(event.currentTarget);
+    const member = findMemberByEmail(state.user.email);
+    if (member) {
+      Object.assign(member, {
+        companyName: state.user.companyName,
+        taxId: state.user.taxId,
+        cName: state.user.contactName,
+        phone: state.user.phone,
+        mobile: state.user.mobile,
+        jobTitle: state.user.jobTitle,
+        address: state.user.address,
+        invoiceAddress: state.user.invoiceAddress,
+        fax: state.user.fax,
+      });
+    }
     saveState();
     syncAccountUi();
     alert("帳戶資料已更新。");
@@ -1502,10 +1615,13 @@ function bindEvents() {
   $("#resetDemoBtn").addEventListener("click", () => {
     if (!confirm("確定要清除 demo 資料？")) return;
     localStorage.removeItem("ptri_user");
+    localStorage.setItem("ptri_members", JSON.stringify([demoMember]));
     localStorage.removeItem("ptri_cases");
-    state.user = { ...demoUser };
+    state.members = [demoMember];
+    state.user = memberToUser(demoMember);
     state.cases = [];
     syncAccountUi();
+    syncModeUi();
     setView("quote");
   });
 }

@@ -223,6 +223,10 @@ body[data-mode="internal"] .nav-item[data-view="submission"] {
   flex-wrap: wrap;
 }
 
+body:not(.is-authenticated) #logoutBtn {
+  display: none;
+}
+
 .small-button {
   min-height: 34px;
   padding: 7px 11px;
@@ -382,6 +386,34 @@ body[data-mode="internal"] .nav-item[data-view="submission"] {
   max-width: 780px;
   line-height: 1.7;
   margin: 0;
+}
+
+.auth-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.28fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.auth-card {
+  min-height: 100%;
+}
+
+.auth-card .form-grid {
+  gap: 15px;
+}
+
+.auth-card .primary-button,
+.auth-card .ghost-button {
+  min-height: 48px;
+}
+
+.privacy-check {
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfc;
+  padding: 12px 14px;
 }
 
 .panel,
@@ -1463,6 +1495,7 @@ dialog::backdrop {
 
   .quote-layout,
   .admin-grid,
+  .auth-layout,
   .service-hero,
   .service-links {
     grid-template-columns: 1fr;
