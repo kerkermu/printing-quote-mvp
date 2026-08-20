@@ -18,6 +18,12 @@ from docx.shared import Pt
 ROOT = Path(__file__).resolve().parents[1]
 QUOTE_TEMPLATE = ROOT / "templates" / "quote_template.docx"
 NUMBER_FONT = "Times New Roman"
+CONTACT_REPLACEMENTS = {
+    "承辦人：康書愷": "承辦人：張世傑",
+    "電話：02-29990016#157": "電話：02-29990016#153",
+    "電話：02-2999-0016#157": "電話：02-29990016#153",
+    "傳真：02-2999-0018": "傳真：02-29990018",
+}
 TEXT_FONT = "標楷體"
 NUMERIC_CHARS = set("0123456789,.-/#()~")
 
@@ -65,6 +71,27 @@ def apply_number_font_to_doc(doc: Document) -> None:
                 for paragraph in target_cell.paragraphs:
                     for run in paragraph.runs:
                         apply_number_font(run)
+
+
+def replace_contact_details(doc: Document) -> None:
+    paragraphs = list(doc.paragraphs)
+    for table in doc.tables:
+        for row in table.rows:
+            for target_cell in row.cells:
+                paragraphs.extend(target_cell.paragraphs)
+
+    for paragraph in paragraphs:
+        if not paragraph.runs:
+            continue
+        original = "".join(run.text for run in paragraph.runs)
+        updated = original
+        for old, new in CONTACT_REPLACEMENTS.items():
+            updated = updated.replace(old, new)
+        if updated == original:
+            continue
+        paragraph.runs[0].text = updated
+        for run in paragraph.runs[1:]:
+            run.text = ""
 
 
 def add_mixed_font_text(paragraph, text: str, size_pt: int) -> None:
@@ -281,6 +308,8 @@ def fill_quote(data: dict, template: Path, output: Path) -> Path:
         18,
     )
 
+    replace_contact_details(doc)
+    apply_number_font_to_doc(doc)
     doc.save(str(output))
     return output
 
