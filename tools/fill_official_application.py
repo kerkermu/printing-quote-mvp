@@ -28,6 +28,12 @@ DEFAULT_TEMPLATE_DIR = Path(
 PAPER_TEMPLATE = DEFAULT_TEMPLATE_DIR / "紙張適性檢測申請書_11406.docx"
 INK_TEMPLATE = DEFAULT_TEMPLATE_DIR / "印刷品及油墨適性檢測申請書_11406.docx"
 NUMBER_FONT = "Times New Roman"
+CONTACT_REPLACEMENTS = {
+    "承辦人：康書愷": "承辦人：張世傑",
+    "電話：02-29990016#157": "電話：02-29990016#153",
+    "電話：02-2999-0016#157": "電話：02-29990016#153",
+    "傳真：02-2999-0018": "傳真：02-29990018",
+}
 
 
 PAPER_ITEM_LABELS = {
@@ -402,6 +408,8 @@ def fill_application(data: dict, paper_template: Path, ink_template: Path, outpu
         normalize_paper_item_labels(doc)
     mark_checked_boxes(doc, data.get("selected_item_ids", []), label_map)
     fill_note_total(doc, data.get("total_with_tax"))
+    replace_text_preserving_runs(doc, CONTACT_REPLACEMENTS)
+    apply_number_font_to_doc(doc)
     doc.save(str(output))
     return output
 

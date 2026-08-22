@@ -12,3 +12,4 @@ __pycache__/
 *.pyc
 generated_forms/
 private_templates/
+/tools/cloudflared.exe

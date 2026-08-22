@@ -22,15 +22,16 @@
         </div>
 
         <nav class="nav" aria-label="主要功能">
-          <button class="nav-item active" data-view="quote">新增詢價</button>
-          <button class="nav-item" data-view="cases">我的案件</button>
-          <button class="nav-item" data-view="submission">繳交專區</button>
-          <button class="nav-item" data-view="admin">內部後台</button>
-          <button class="nav-item" data-view="settings">帳戶資料</button>
+          <button class="nav-item active" data-view="cases" data-audience="vendor">我的案件</button>
+          <button class="nav-item" data-view="quote" data-audience="vendor">新增申請</button>
+          <button class="nav-item" data-view="submission" data-audience="vendor">文件繳交</button>
+          <button class="nav-item" data-view="settings" data-audience="vendor">會員資料</button>
+          <button class="nav-item" data-view="admin" data-audience="staff">待處理案件</button>
+          <button class="nav-item" data-view="staffIntake" data-audience="staff">代建案件</button>
         </nav>
 
         <section class="account-panel">
-          <p class="eyebrow">目前登入</p>
+          <p class="eyebrow" id="currentRoleLabel">目前登入</p>
           <strong id="currentCompany">尚未登入</strong>
           <span id="currentEmail">請先建立 demo 帳號</span>
         </section>
@@ -43,12 +44,8 @@
             <h2 id="viewTitle">印刷適性實驗室線上申請與報價</h2>
           </div>
           <div class="utility-actions">
-            <div class="mode-switch" aria-label="使用模式">
-              <button class="mode-button active" type="button" data-mode-option="vendor">廠商模式</button>
-              <button class="mode-button" type="button" data-mode-option="internal">同仁模式</button>
-            </div>
-            <button class="ghost-button small-button" type="button">列印</button>
-            <button class="ghost-button small-button" type="button">Email</button>
+            <button class="ghost-button small-button" id="staffEntryBtn" type="button">內部同仁登入</button>
+            <button class="ghost-button small-button" id="logoutBtn" type="button">登出</button>
             <button class="ghost-button" id="resetDemoBtn" type="button">重置 demo</button>
           </div>
         </header>
@@ -64,7 +61,7 @@
           <div class="service-contact">
             <strong>服務窗口</strong>
             <span>印研中心檢測服務承辦</span>
-            <span>02-2999-0016</span>
+            <span>張世傑｜02-29990016#153｜傳真 02-29990018</span>
           </div>
         </section>
 
@@ -79,7 +76,7 @@
           </article>
           <article>
             <strong>3. 文件產生</strong>
-            <span>自動下載申請書與報價單。</span>
+            <span>送出後下載申請書，報價單由中心確認。</span>
           </article>
           <article>
             <strong>4. 回簽開案</strong>
@@ -98,49 +95,122 @@
             </div>
           </div>
 
-          <form class="panel form-grid" id="loginForm">
-            <label>
-              Email
-              <input required name="email" type="email" value="ken.ding@msa.hinet.net" />
-            </label>
-            <label>
-              公司名稱
-              <input required name="companyName" value="肯定實業股份有限公司" />
-            </label>
-            <label>
-              統一編號
-              <input required name="taxId" value="86106811" />
-            </label>
-            <label>
-              聯絡人
-              <input required name="contactName" value="洪昭治" />
-            </label>
-            <label>
-              聯絡電話
-              <input required name="phone" value="02-82457355 #200" />
-            </label>
-            <label>
-              行動電話
-              <input name="mobile" value="0922451707" />
-            </label>
-            <label>
-              職稱
-              <input name="jobTitle" value="" />
-            </label>
-            <label>
-              公司地址
-              <input required name="address" value="新北市中和區連城路160號後棟" />
-            </label>
-            <label>
-              發票地址
-              <input required name="invoiceAddress" value="新北市中和區連城路160號後棟" />
-            </label>
-            <label>
-              傳真
-              <input name="fax" value="02-82457320" />
-            </label>
-            <button class="primary-button full-row" type="submit">登入並開始詢價</button>
-          </form>
+          <div class="auth-layout">
+            <section class="panel auth-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Member Login</p>
+                  <h3>會員登入</h3>
+                </div>
+              </div>
+              <form class="form-grid" id="memberLoginForm">
+                <label class="full-row">
+                  Email 帳號
+                  <input required name="email" type="email" autocomplete="username" value="ken.ding@msa.hinet.net" />
+                </label>
+                <label class="full-row">
+                  密碼
+                  <input required name="password" type="password" autocomplete="current-password" value="PtriDemo2026" />
+                </label>
+                <button class="primary-button full-row" type="submit">登入並開始詢價</button>
+                <button class="ghost-button full-row" id="useDemoMemberBtn" type="button">使用展示帳號</button>
+              </form>
+            </section>
+
+            <section class="panel auth-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Member Register</p>
+                  <h3>會員註冊</h3>
+                </div>
+              </div>
+              <form class="form-grid" id="registerForm">
+                <label>
+                  中文姓名
+                  <input required name="cName" placeholder="請輸入真實中文姓名" />
+                </label>
+                <label>
+                  英文姓名
+                  <input name="englishName" placeholder="請輸入英文姓名" />
+                </label>
+                <label>
+                  Email 帳號
+                  <input required name="email" type="email" placeholder="未來登入本系統的帳號" autocomplete="username" />
+                </label>
+                <label>
+                  公司名稱
+                  <input required name="companyName" placeholder="請輸入公司名稱" />
+                </label>
+                <label>
+                  密碼
+                  <input required name="password" type="password" minlength="8" placeholder="至少 8 個英數字元" autocomplete="new-password" />
+                </label>
+                <label>
+                  確認密碼
+                  <input required name="confirmPassword" type="password" placeholder="請再一次輸入密碼" autocomplete="new-password" />
+                </label>
+                <label>
+                  統一編號
+                  <input required name="taxId" />
+                </label>
+                <label>
+                  電話
+                  <input name="phone" placeholder="市內電話或手機至少填一項" />
+                </label>
+                <label>
+                  分機
+                  <input name="extension" placeholder="請輸入分機" />
+                </label>
+                <label>
+                  行動電話
+                  <input name="mobile" placeholder="市內電話或手機至少填一項" />
+                </label>
+                <label>
+                  公司地址
+                  <input required name="address" />
+                </label>
+                <label class="full-row check-label address-sync">
+                  <input name="sameInvoiceAddress" type="checkbox" />
+                  發票地址同公司地址
+                </label>
+                <label>
+                  發票地址
+                  <input required name="invoiceAddress" />
+                </label>
+                <label class="full-row check-label privacy-check">
+                  <input required name="privacyConfirm" type="checkbox" />
+                  同意提供資料供檢測申請、報價與案件聯絡使用
+                </label>
+                <button class="primary-button full-row" type="submit">建立會員並開始詢價</button>
+              </form>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="staffLoginView" aria-labelledby="staffLoginTitle">
+          <div class="auth-single">
+            <section class="panel auth-card">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Internal Staff</p>
+                  <h3 id="staffLoginTitle">內部同仁登入</h3>
+                </div>
+                <button class="ghost-button" type="button" data-go-vendor-login>返回廠商登入</button>
+              </div>
+              <p class="fine-print">此入口僅供印研中心內部承辦同仁使用。</p>
+              <form class="form-grid" id="staffLoginForm">
+                <label class="full-row">
+                  內部帳號
+                  <input required name="email" type="email" autocomplete="username" value="staff@ptri.org.tw" />
+                </label>
+                <label class="full-row">
+                  密碼
+                  <input required name="password" type="password" autocomplete="current-password" value="PtriStaff2026" />
+                </label>
+                <button class="primary-button full-row" type="submit">登入內部後台</button>
+              </form>
+            </section>
+          </div>
         </section>
 
         <section class="view" id="quoteView">
@@ -248,32 +318,6 @@
                   </select>
                 </label>
                 <label>
-                  是否為廠商首次申請檢測
-                  <select required name="isFirstApplication">
-                    <option value="no">否，曾申請過</option>
-                    <option value="yes">是，首次申請</option>
-                  </select>
-                </label>
-                <fieldset class="field-group full-row">
-                  <legend>首次申請檢附證件</legend>
-                  <p class="field-help">
-                    廠商首次申請檢測時須提供其中一項；曾申請過者免附。
-                  </p>
-                  <label class="check-label">
-                    <input type="checkbox" name="attachments" value="工廠登記證影本一份" />
-                    工廠登記證影本一份
-                  </label>
-                  <label class="check-label">
-                    <input type="checkbox" name="attachments" value="公司執照影本一份" />
-                    公司執照影本一份
-                  </label>
-                  <label class="check-label other-attachment">
-                    <input type="checkbox" name="attachments" value="其他" />
-                    其他
-                    <input name="attachmentOther" placeholder="請填寫其他證件" />
-                  </label>
-                </fieldset>
-                <label>
                   中文報告加購份數
                   <input name="extraChineseReports" type="number" min="0" step="1" value="0" />
                 </label>
@@ -338,6 +382,7 @@
               <p class="fine-print">
                 本金額為系統預估，實際金額與時程仍以印研中心確認樣品與檢測條件後為準。
               </p>
+              <p class="draft-save-status" id="draftSaveStatus">尚未建立草稿</p>
               <button class="primary-button" type="submit">送出並產生文件</button>
             </aside>
           </form>
@@ -348,10 +393,20 @@
             <div class="section-heading">
               <div>
                 <p class="eyebrow">Cases</p>
-                <h3>歷史詢價案件</h3>
+                <h3>我的案件</h3>
               </div>
+              <button class="primary-button" id="newApplicationBtn" type="button">新增檢測申請</button>
             </div>
-            <div class="case-list" id="caseList"></div>
+            <div class="view-tabs" role="tablist" aria-label="案件資料">
+              <button class="view-tab active" type="button" data-case-tab="submitted">正式案件</button>
+              <button class="view-tab" type="button" data-case-tab="drafts">草稿</button>
+            </div>
+            <div class="case-tab-panel active" data-case-panel="submitted">
+              <div class="case-list" id="caseList"></div>
+            </div>
+            <div class="case-tab-panel" data-case-panel="drafts">
+              <div class="case-list" id="draftList"></div>
+            </div>
           </div>
         </section>
 
@@ -382,15 +437,14 @@
               <select name="caseId" id="submissionCaseSelect" required></select>
             </label>
             <label class="full-row">
-              上傳已簽章文件
-              <input
-                name="signedFiles"
-                type="file"
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                multiple
-                required
-              />
+              已簽章申請書
+              <input name="signedApplication" type="file" accept=".pdf,.doc,.docx" required />
             </label>
+            <label class="full-row">
+              已簽章報價單
+              <input name="signedQuote" type="file" accept=".pdf,.doc,.docx" required />
+            </label>
+            <p class="field-help full-row">每份檔案限 PDF 或 Word，大小不得超過 20 MB；重新上傳時會保留舊版本。</p>
             <label class="full-row">
               回傳備註
               <textarea name="submissionNote" rows="4" placeholder="例如：已完成申請書與報價單用印，請協助確認。"></textarea>
@@ -400,23 +454,121 @@
         </section>
 
         <section class="view" id="adminView">
-          <div class="admin-grid">
+          <section class="staff-summary" id="staffSummary"></section>
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Internal</p>
+                <h3>待處理案件</h3>
+              </div>
+              <button class="primary-button" type="button" data-view="staffIntake">建立代收案件</button>
+            </div>
+            <div class="kanban" id="kanban"></div>
+          </section>
+        </section>
+
+        <section class="view" id="staffIntakeView">
+          <form class="staff-intake-layout" id="staffIntakeForm">
             <section class="panel">
-              <p class="eyebrow">Internal</p>
-              <h3>內部案件看板</h3>
-              <div class="kanban" id="kanban"></div>
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">Manual Intake</p>
+                  <h3>同仁代建案件</h3>
+                </div>
+                <span class="pill">電話／紙本收件</span>
+              </div>
+              <div class="form-grid">
+                <label>
+                  案件來源
+                  <select required name="source">
+                    <option value="phone">同仁電話代建</option>
+                    <option value="paper">紙本現場收件</option>
+                  </select>
+                </label>
+                <label>
+                  綁定會員（選填）
+                  <select name="linkedMemberEmail" id="staffMemberSelect"></select>
+                </label>
+                <label class="full-row check-label">
+                  <input name="paperOriginalReceived" type="checkbox" />
+                  已收到紙本簽章正本
+                </label>
+                <label>
+                  公司名稱
+                  <input required name="companyName" />
+                </label>
+                <label>
+                  統一編號
+                  <input required name="taxId" />
+                </label>
+                <label>
+                  聯絡人
+                  <input required name="contactName" />
+                </label>
+                <label>
+                  Email
+                  <input name="email" type="email" />
+                </label>
+                <label>
+                  電話
+                  <input required name="phone" />
+                </label>
+                <label>
+                  公司地址
+                  <input required name="address" />
+                </label>
+                <label>
+                  發票地址
+                  <input required name="invoiceAddress" />
+                </label>
+                <label>
+                  測試件名稱
+                  <input required name="sampleName" />
+                </label>
+                <label>
+                  測試件數量
+                  <input required name="sampleQty" />
+                </label>
+                <label>
+                  測試件描述
+                  <input required name="material" />
+                </label>
+                <label>
+                  案件類型
+                  <select required name="caseType">
+                    <option>一般件</option>
+                    <option>急件</option>
+                    <option>特急件</option>
+                  </select>
+                </label>
+                <label>
+                  檢測類型
+                  <select required name="serviceType" id="staffServiceType">
+                    <option value="paper">紙張適性檢測</option>
+                    <option value="ink">印刷品及油墨適性檢測</option>
+                  </select>
+                </label>
+                <label>
+                  檢測類別
+                  <select required name="categoryFilter" id="staffCategoryFilter"></select>
+                </label>
+                <div class="staff-test-list full-row" id="staffTestList"></div>
+                <label class="full-row">
+                  收件備註
+                  <textarea name="intakeNote" rows="3" placeholder="可記錄紙本收件或電話取得的補充資訊。"></textarea>
+                </label>
+              </div>
             </section>
-            <section class="panel">
-              <p class="eyebrow">Checklist</p>
-              <h3>第一版後台功能</h3>
-              <ul class="checklist">
-                <li>確認客戶資料與樣品資訊</li>
-                <li>調整正式報價金額</li>
-                <li>產生內部簽呈</li>
-                <li>追蹤待回簽、已回簽、已開案狀態</li>
-              </ul>
-            </section>
-          </div>
+            <aside class="summary-panel">
+              <p class="eyebrow">Intake</p>
+              <h3>建立內部案件</h3>
+              <p class="fine-print">未綁定會員也能先建立，日後可由同仁手動綁定或寄出註冊邀請。</p>
+              <dl>
+                <div><dt>預估含稅總額</dt><dd id="staffEstimateTotal">NT$0</dd></div>
+              </dl>
+              <button class="primary-button" type="submit">建立案件</button>
+            </aside>
+          </form>
         </section>
 
         <section class="view" id="settingsView">
