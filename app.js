@@ -185,6 +185,7 @@ const state = {
   activeDraftId: null,
   role: localStorage.getItem("ptri_role") || "guest",
   isSubmittingQuote: false,
+  pendingQuoteSubmission: null,
 };
 
 if (state.user?.email === "customer@example.com" || state.user?.companyName === demoUser.companyName) {
@@ -242,7 +243,118 @@ function findMemberByEmail(email) {
 }
 
 function isValidMemberPassword(password) {
-  return /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password);
+  const value = String(password || "");
+  const commonPasswords = new Set(["password1", "password123", "12345678", "qwerty123", "abc12345"]);
+  return /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/.test(value) && !commonPasswords.has(value.toLowerCase());
+}
+
+const passwordHashIterations = 210000;
+const registrationAttemptKey = "ptri_registration_attempts";
+const privacyNoticeVersion = "2026-10-27-v1";
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function base64ToBytes(value) {
+  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+}
+
+async function derivePasswordHash(password, salt, iterations = passwordHashIterations) {
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt, iterations },
+    keyMaterial,
+    256
+  );
+  return bytesToBase64(new Uint8Array(bits));
+}
+
+async function createPasswordRecord(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  return {
+    passwordHash: await derivePasswordHash(password, salt),
+    passwordSalt: bytesToBase64(salt),
+    passwordIterations: passwordHashIterations,
+  };
+}
+
+async function verifyMemberPassword(member, password) {
+  if (member.passwordHash && member.passwordSalt) {
+    const candidate = await derivePasswordHash(
+      password,
+      base64ToBytes(member.passwordSalt),
+      member.passwordIterations || passwordHashIterations
+    );
+    return candidate === member.passwordHash;
+  }
+  return member.password === password;
+}
+
+async function verifyRecaptchaToken(token) {
+  const response = await fetch("/api/verify-recaptcha", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  const result = await response.json();
+  if (!response.ok || !result.ok) {
+    throw new Error(result.error || "安全驗證失敗。");
+  }
+}
+
+function registrationIsTemporarilyLocked() {
+  const record = JSON.parse(localStorage.getItem(registrationAttemptKey) || "null");
+  if (!record) return false;
+  if (Date.now() - record.startedAt > 10 * 60 * 1000) {
+    localStorage.removeItem(registrationAttemptKey);
+    return false;
+  }
+  return record.count >= 5;
+}
+
+function recordRegistrationFailure() {
+  const now = Date.now();
+  const current = JSON.parse(localStorage.getItem(registrationAttemptKey) || "null");
+  const record = !current || now - current.startedAt > 10 * 60 * 1000
+    ? { count: 1, startedAt: now }
+    : { ...current, count: current.count + 1 };
+  localStorage.setItem(registrationAttemptKey, JSON.stringify(record));
+}
+
+function updatePasswordStrength(password) {
+  const indicator = $("#passwordStrength");
+  if (!indicator) return;
+  const value = String(password || "");
+  let score = 0;
+  if (value.length >= 8) score += 1;
+  if (value.length >= 12) score += 1;
+  if (/[A-Z]/.test(value) && /[a-z]/.test(value)) score += 1;
+  if (/\d/.test(value)) score += 1;
+  if (/[^A-Za-z0-9]/.test(value)) score += 1;
+  if (!value) {
+    indicator.textContent = "尚未輸入密碼";
+    delete indicator.dataset.level;
+  } else if (score <= 2) {
+    indicator.textContent = "密碼強度：弱（建議加入大小寫、數字及符號）";
+    indicator.dataset.level = "weak";
+  } else if (score <= 4) {
+    indicator.textContent = "密碼強度：中等";
+    indicator.dataset.level = "medium";
+  } else {
+    indicator.textContent = "密碼強度：良好";
+    indicator.dataset.level = "strong";
+  }
 }
 
 function isInternalMode() {
@@ -266,6 +378,67 @@ function markInternalStep(caseData, stepName, done = true) {
   if (!step || step.done === done) return;
   step.done = done;
   step.completedAt = done ? new Date().toISOString() : "";
+}
+
+function completedStepAt(caseData, stepName) {
+  return ensureInternalCase(caseData).internal.steps.find((item) => item.name === stepName)?.completedAt || "";
+}
+
+async function syncCaseToDetail(caseData, button) {
+  const internalCase = ensureInternalCase(caseData);
+  if (!internalCase.internal.quoteApprovedAt) {
+    alert("請先完成報價確認，再同步檢測細目。");
+    return;
+  }
+  const previousSync = internalCase.internal.detailSync;
+  const confirmMessage = previousSync?.syncedAt
+    ? `此案件先前標記為已同步至第 ${previousSync.row} 列。\n要重新核對並嘗試同步嗎？後端會阻擋重複寫入。`
+    : `確定要將 ${caseData.caseNo} 同步到 115檢測細目.xlsx 嗎？\n系統會先自動建立備份。`;
+  if (!confirm(confirmMessage)) return;
+
+  const originalText = button?.textContent || "同步檢測細目";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "同步中...";
+  }
+  const completedMemoAt = completedStepAt(caseData, "完成申請簽呈");
+  const payload = {
+    syncKey: caseData.id,
+    caseNo: caseData.caseNo,
+    serviceType: caseData.serviceType,
+    companyName: caseData.customer?.companyName || "",
+    syncDate: completedMemoAt || internalCase.internal.quoteApprovedAt || new Date().toISOString(),
+    itemNames: caseData.estimate?.items?.map((item) => item.name) || [],
+    amount: Number(internalCase.internal.finalAmount ?? caseData.estimate?.total ?? 0),
+    caseType: caseData.sample?.caseType || "一般件",
+  };
+
+  try {
+    const response = await fetch("/api/sync-detail", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "同步失敗。");
+    internalCase.internal.detailSync = {
+      syncedAt: new Date().toISOString(),
+      row: result.row,
+      serialNumber: result.serialNumber,
+      testNumber: result.testNumber,
+    };
+    markInternalStep(caseData, "建立檢測細目");
+    saveState();
+    renderKanban();
+    if (currentViewName() === "caseDetail") renderCaseDetail();
+    alert(`同步完成：流水號 ${result.serialNumber}、測試件編號 ${result.testNumber}，已寫入第 ${result.row} 列。`);
+  } catch (error) {
+    alert(`同步失敗：${error.message}`);
+    if (button) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
 }
 
 function syncCaseStepsFromStatus(caseData) {
@@ -618,6 +791,7 @@ function createCase(formData, estimate, options = {}) {
 
 async function submitQuote(event) {
   event.preventDefault();
+  if (state.isSubmittingQuote) return;
   const form = event.currentTarget;
   const submitButton = event.submitter || form.querySelector('button[type="submit"]');
   const estimate = calculateEstimate();
@@ -626,24 +800,30 @@ async function submitQuote(event) {
     return;
   }
 
-  const newCase = createCase(formData, estimate);
-  state.isSubmittingQuote = true;
-  state.cases.unshift(newCase);
-  if (state.activeDraftId) {
-    state.drafts = state.drafts.filter((draft) => draft.id !== state.activeDraftId);
-    state.activeDraftId = null;
+  const submissionKey = JSON.stringify([state.user?.email, state.activeDraftId, formData, estimate]);
+  if (state.pendingQuoteSubmission?.key !== submissionKey) {
+    state.pendingQuoteSubmission = { key: submissionKey, caseData: createCase(formData, estimate) };
   }
-  state.activeCase = newCase;
-  saveState();
-  renderCases();
-  renderKanban();
+  const newCase = state.pendingQuoteSubmission.caseData;
+  state.isSubmittingQuote = true;
+  const submittedDraftId = state.activeDraftId;
   if (submitButton) {
     submitButton.disabled = true;
     submitButton.textContent = "送出申請中...";
   }
 
   try {
-    await downloadOfficialDocx(newCase, "application");
+    await downloadOfficialDocx(newCase, "application", { submit: true });
+    state.cases.unshift(newCase);
+    if (submittedDraftId) {
+      state.drafts = state.drafts.filter((draft) => draft.id !== submittedDraftId);
+      if (state.activeDraftId === submittedDraftId) state.activeDraftId = null;
+    }
+    state.activeCase = newCase;
+    saveState();
+    state.pendingQuoteSubmission = null;
+    renderCases();
+    renderKanban();
     alert("申請已送出，報價單將由印研中心同仁確認後再提供。");
     setView("cases");
   } catch (error) {
@@ -1009,11 +1189,27 @@ function renderCaseDetail() {
 function renderKanban() {
   const kanban = $("#kanban");
   const cases = state.cases.length ? state.cases : [];
+  const statusFilter = $("#staffCaseStatusFilter");
+  if (statusFilter && statusFilter.options.length === 1) {
+    statusFilter.insertAdjacentHTML(
+      "beforeend",
+      caseStatuses.map((status) => `<option value="${status}">${status}</option>`).join("")
+    );
+  }
+  const query = String($("#staffCaseSearch")?.value || "").trim().toLowerCase();
+  const selectedStatus = statusFilter?.value || "";
+  const filteredCases = cases.filter((item) => {
+    const searchable = [item.caseNo, item.customer?.companyName, item.customer?.contactName, item.sample?.sampleName]
+      .join(" ")
+      .toLowerCase();
+    return (!query || searchable.includes(query)) && (!selectedStatus || item.status === selectedStatus);
+  });
   renderStaffSummary(cases);
+  if ($("#staffCaseCount")) $("#staffCaseCount").textContent = `顯示 ${filteredCases.length} / ${cases.length} 件`;
   kanban.innerHTML =
-    cases
+    filteredCases
       .map((item) => buildInternalCaseCard(ensureInternalCase(item)))
-      .join("") || `<p class="fine-print">尚無案件。</p>`;
+      .join("") || `<div class="empty-state"><strong>沒有符合條件的案件</strong><span>請調整搜尋文字或案件狀態。</span></div>`;
 }
 
 function ensureInternalCase(caseData) {
@@ -1047,6 +1243,7 @@ function ensureInternalCase(caseData) {
     caseData.internal.paymentStatus = "未確認";
   }
   caseData.internal.note = caseData.internal.note || "";
+  caseData.internal.detailSync = caseData.internal.detailSync || null;
   if (caseData.submission) {
     caseData.submission.archiveDir = caseData.submission.archiveDir || "";
     if (!Array.isArray(caseData.submission.versions)) {
@@ -1122,69 +1319,35 @@ function buildInternalCaseCard(caseData) {
   return `
     <article class="internal-card">
       <header class="internal-card-header">
-        <div>
+        <div class="internal-card-title">
           <p class="eyebrow">${caseData.caseNo}｜${sourceLabels[caseData.source || "online"]}</p>
           <h4>${caseData.customer.companyName}</h4>
-          <p>${caseData.sample.sampleName}｜${caseData.estimate.items.length} 項｜${money(caseData.estimate.total)}</p>
+          <p>${caseData.sample.sampleName}｜${caseData.estimate.items.length} 項檢測</p>
         </div>
-        <span class="status">${caseData.status}</span>
+        <div class="internal-card-state">
+          <strong>${money(caseData.internal.finalAmount)}</strong>
+          <span class="status">${caseData.status}</span>
+        </div>
       </header>
 
-      <div class="internal-meta">
-        <span>聯絡人：${caseData.customer.contactName || ""}</span>
-        <span>電話：${caseData.customer.phone || ""}</span>
-        <span>回傳：${submittedAt}</span>
-        <span>付款：${caseData.internal.paymentStatus}</span>
-        <span>會員：${caseData.ownerEmail || "尚未綁定"}</span>
-        <span>報價確認：${quoteApprovedAt}</span>
-        <span>報價寄出：${quoteSentAt}</span>
+      <div class="internal-overview">
+        <div><span>聯絡人</span><strong>${caseData.customer.contactName || "未填寫"}</strong></div>
+        <div><span>電話</span><strong>${caseData.customer.phone || "未填寫"}</strong></div>
+        <div><span>文件回傳</span><strong>${submittedAt}</strong></div>
+        <div><span>付款</span><strong>${caseData.internal.paymentStatus}</strong></div>
       </div>
 
-      <div class="internal-actions">
-        <button class="ghost-button" type="button" data-view-case="${caseData.id}">查看明細</button>
-        <button class="ghost-button" type="button" data-download-doc="${caseData.id}" data-doc-type="application">下載申請書</button>
-        <button class="ghost-button" type="button" data-download-doc="${caseData.id}" data-doc-type="quote">下載報價單</button>
-        <button class="ghost-button" type="button" data-print-memo="${caseData.id}">產生內部簽呈</button>
-        <button class="ghost-button" type="button" data-approve-quote="${caseData.id}">標記報價已確認</button>
-        <button class="primary-button" type="button" data-send-quote="${caseData.id}">標記已寄出報價單</button>
-        ${!caseData.ownerEmail && caseData.customer.email ? `<button class="ghost-button" type="button" data-invite-member="${caseData.id}">邀請廠商註冊</button>` : ""}
+      <div class="internal-progress compact-progress">
+        <div>
+          <strong>內部進度</strong>
+          <span>${progress.done}/${progress.total} 完成</span>
+        </div>
+        <div class="progress-track"><span style="width:${progress.percent}%"></span></div>
       </div>
 
-      <div class="quote-review">
-        <label>
-          原始試算
-          <input value="${caseData.estimate.total}" disabled />
-        </label>
-        <label>
-          最終確認金額
-          <input type="number" min="0" step="1" value="${caseData.internal.finalAmount}" data-final-amount="${caseData.id}" />
-        </label>
-        <label class="full-row">
-          金額調整備註
-          <textarea rows="2" data-adjustment-note="${caseData.id}" placeholder="金額有調整時必填。">${caseData.internal.adjustmentNote}</textarea>
-        </label>
-        <p class="fine-print full-row">${
-          caseData.internal.quoteVersions.length
-            ? `目前版本：V${caseData.internal.quoteVersions.length}；重新確認會保留舊版。`
-            : "尚未建立正式報價版本。"
-        }</p>
-      </div>
-
-      <div class="member-link-row">
-        <label>
-          手動綁定會員
-          <select data-member-link-select="${caseData.id}">
-            <option value="">未綁定會員</option>
-            ${state.members
-              .map(
-                (member) =>
-                  `<option value="${member.email}" ${caseData.ownerEmail === member.email ? "selected" : ""}>${member.companyName}｜${member.cName || member.contactName}｜${member.email}</option>`
-              )
-              .join("")}
-          </select>
-        </label>
-        <button class="ghost-button" type="button" data-link-member="${caseData.id}">儲存會員綁定</button>
-        ${caseData.invitation?.sentAt ? `<span class="muted-inline">註冊邀請（Demo）已於 ${formatDateTime(caseData.invitation.sentAt)} 建立</span>` : ""}
+      <div class="internal-primary-actions">
+        <button class="ghost-button" type="button" data-view-case="${caseData.id}">查看完整資料</button>
+        <button class="primary-button" type="button" data-send-quote="${caseData.id}">寄出報價單</button>
       </div>
 
       ${
@@ -1196,70 +1359,62 @@ function buildInternalCaseCard(caseData) {
           : ""
       }
 
-      <div class="internal-progress">
-        <div>
-          <strong>內部進度</strong>
-          <span>${progress.done}/${progress.total} 完成</span>
+      <details class="case-workspace">
+        <summary><span>案件處理與文件</span><small>報價 ${quoteApprovedAt}｜寄出 ${quoteSentAt}</small></summary>
+        <div class="case-workspace-body">
+          <section class="workspace-section">
+            <h5>報價確認</h5>
+            <div class="quote-review">
+              <label>原始試算<input value="${caseData.estimate.total}" disabled /></label>
+              <label>最終確認金額<input type="number" min="0" step="1" value="${caseData.internal.finalAmount}" data-final-amount="${caseData.id}" /></label>
+              <label class="full-row">金額調整備註<textarea rows="2" data-adjustment-note="${caseData.id}" placeholder="金額有調整時必填。">${caseData.internal.adjustmentNote}</textarea></label>
+              <p class="fine-print full-row">${caseData.internal.quoteVersions.length ? `目前版本：V${caseData.internal.quoteVersions.length}；重新確認會保留舊版。` : "尚未建立正式報價版本。"}</p>
+            </div>
+            <div class="workspace-actions">
+              <button class="ghost-button" type="button" data-approve-quote="${caseData.id}">確認報價</button>
+              <button class="primary-button" type="button" data-send-quote="${caseData.id}">寄出報價單</button>
+            </div>
+          </section>
+
+          <section class="workspace-section">
+            <h5>文件與系統作業</h5>
+            <div class="workspace-actions">
+              <button class="ghost-button" type="button" data-download-doc="${caseData.id}" data-doc-type="application">下載申請書</button>
+              <button class="ghost-button" type="button" data-download-doc="${caseData.id}" data-doc-type="quote">下載報價單</button>
+              <button class="ghost-button" type="button" data-print-memo="${caseData.id}">下載正式簽呈</button>
+              <button class="ghost-button" type="button" data-sync-detail="${caseData.id}">${caseData.internal.detailSync?.syncedAt ? `已同步｜${caseData.internal.detailSync.testNumber}` : "同步檢測細目"}</button>
+            </div>
+            <div class="internal-files">
+              <strong>廠商回傳文件</strong>
+              ${files.length ? files.map((file) => `<span>${file}</span>`).join("") : `<span class="muted-inline">尚未回傳簽章文件</span>`}
+              ${archiveDir ? `<small>歸檔位置：${archiveDir}</small>` : ""}
+              ${submission?.note ? `<small>備註：${submission.note}</small>` : ""}
+            </div>
+          </section>
+
+          <section class="workspace-section">
+            <h5>案件管理</h5>
+            <div class="internal-controls">
+              <label>案件狀態<select data-internal-status="${caseData.id}">${caseStatuses.map((status) => `<option value="${status}" ${caseData.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
+              <label>付款狀態<select data-internal-payment="${caseData.id}">${paymentStatuses.map((status) => `<option value="${status}" ${caseData.internal.paymentStatus === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>
+            </div>
+            <div class="internal-steps">
+              ${caseData.internal.steps.map((step, index) => `<label class="internal-step ${step.done ? "done" : ""}"><input type="checkbox" data-internal-step="${caseData.id}" data-step-index="${index}" ${step.done ? "checked" : ""} /><span>${step.name}</span>${step.completedAt ? `<small>${formatDateTime(step.completedAt)}</small>` : ""}</label>`).join("")}
+            </div>
+            <label class="internal-note">內部備註<textarea data-internal-note="${caseData.id}" rows="2" placeholder="僅供內部查看的案件備註。">${caseData.internal.note}</textarea></label>
+          </section>
+
+          <section class="workspace-section">
+            <h5>會員綁定</h5>
+            <div class="member-link-row">
+              <label>手動綁定會員<select data-member-link-select="${caseData.id}"><option value="">未綁定會員</option>${state.members.map((member) => `<option value="${member.email}" ${caseData.ownerEmail === member.email ? "selected" : ""}>${member.companyName}｜${member.cName || member.contactName}｜${member.email}</option>`).join("")}</select></label>
+              <button class="ghost-button" type="button" data-link-member="${caseData.id}">儲存綁定</button>
+              ${!caseData.ownerEmail && caseData.customer.email ? `<button class="ghost-button" type="button" data-invite-member="${caseData.id}">邀請註冊</button>` : ""}
+              ${caseData.invitation?.sentAt ? `<span class="muted-inline">已於 ${formatDateTime(caseData.invitation.sentAt)} 建立註冊邀請</span>` : ""}
+            </div>
+          </section>
         </div>
-        <div class="progress-track"><span style="width:${progress.percent}%"></span></div>
-      </div>
-
-      <div class="internal-files">
-        <strong>廠商回傳文件</strong>
-        ${
-          files.length
-            ? files.map((file) => `<span>${file}</span>`).join("")
-            : `<span class="muted-inline">尚未回傳簽章文件</span>`
-        }
-        ${archiveDir ? `<small>歸檔位置：${archiveDir}</small>` : ""}
-        ${submission?.note ? `<small>備註：${submission.note}</small>` : ""}
-      </div>
-
-      <div class="internal-controls">
-        <label>
-          案件狀態
-          <select data-internal-status="${caseData.id}">
-            ${caseStatuses
-              .map((status) => `<option value="${status}" ${caseData.status === status ? "selected" : ""}>${status}</option>`)
-              .join("")}
-          </select>
-        </label>
-        <label>
-          付款狀態
-          <select data-internal-payment="${caseData.id}">
-            ${paymentStatuses
-              .map(
-                (status) =>
-                  `<option value="${status}" ${caseData.internal.paymentStatus === status ? "selected" : ""}>${status}</option>`
-              )
-              .join("")}
-          </select>
-        </label>
-      </div>
-
-      <div class="internal-steps">
-        ${caseData.internal.steps
-          .map(
-            (step, index) => `
-              <label class="internal-step ${step.done ? "done" : ""}">
-                <input
-                  type="checkbox"
-                  data-internal-step="${caseData.id}"
-                  data-step-index="${index}"
-                  ${step.done ? "checked" : ""}
-                />
-                <span>${step.name}</span>
-                ${step.completedAt ? `<small>${formatDateTime(step.completedAt)}</small>` : ""}
-              </label>
-            `
-          )
-          .join("")}
-      </div>
-
-      <label class="internal-note">
-        內部備註
-        <textarea data-internal-note="${caseData.id}" rows="2" placeholder="僅供內部查看的案件備註。">${caseData.internal.note}</textarea>
-      </label>
+      </details>
     </article>
   `;
 }
@@ -1717,10 +1872,15 @@ function syncSubmissionFormState() {
   });
 }
 
-async function downloadOfficialDocx(caseData, docType) {
+async function downloadOfficialDocx(caseData, docType, { submit = false } = {}) {
   const isQuote = docType === "quote";
-  const endpoint = isQuote ? "/api/generate-quote" : "/api/generate-application";
-  const label = isQuote ? "報價單" : "申請書";
+  const isMemo = docType === "memo";
+  const endpoint = isMemo
+    ? "/api/generate-memo"
+    : isQuote
+      ? "/api/generate-quote"
+      : submit ? "/api/submit-application" : "/api/generate-application";
+  const label = isMemo ? "內部簽呈" : isQuote ? "報價單" : "申請書";
 
   if (window.location.protocol === "file:") {
     throw new Error(`正式 Word ${label}需要從本機後端開啟。請使用 http://127.0.0.1:8765/ 進入系統。`);
@@ -1859,20 +2019,46 @@ async function submitSignedDocuments(event) {
   alert("已收到回傳資料，待印研中心同仁確認。");
 }
 
-function submitMemberLogin(event) {
+async function submitMemberLogin(event) {
   event.preventDefault();
   const data = readForm(event.currentTarget);
   const member = findMemberByEmail(data.email);
-  if (!member || member.password !== data.password) {
+  if (!member || !(await verifyMemberPassword(member, data.password))) {
     alert("帳號或密碼不正確。");
     return;
   }
   loginMember(member);
 }
 
-function submitMemberRegister(event) {
+async function submitMemberRegister(event) {
   event.preventDefault();
-  const data = readForm(event.currentTarget);
+  const form = event.currentTarget;
+  const data = readForm(form);
+  if (registrationIsTemporarilyLocked()) {
+    alert("註冊嘗試次數過多，請 10 分鐘後再試。 ");
+    return;
+  }
+  if (String(data.website || "").trim()) {
+    recordRegistrationFailure();
+    window.grecaptcha?.reset();
+    alert("驗證失敗，請重新操作。");
+    return;
+  }
+  const recaptchaToken = String(data["g-recaptcha-response"] || "").trim();
+  if (!recaptchaToken) {
+    recordRegistrationFailure();
+    alert("請先完成安全驗證。");
+    return;
+  }
+  try {
+    await verifyRecaptchaToken(recaptchaToken);
+  } catch (error) {
+    recordRegistrationFailure();
+    window.grecaptcha?.reset();
+    alert(error.message);
+    return;
+  }
+  data.email = String(data.email || "").trim().toLowerCase();
   if (findMemberByEmail(data.email)) {
     alert("此 Email 已註冊，請改用登入。");
     return;
@@ -1894,25 +2080,34 @@ function submitMemberRegister(event) {
     return;
   }
 
+  const passwordRecord = await createPasswordRecord(data.password);
+
   const member = {
     id: crypto.randomUUID(),
-    cName: data.cName,
-    englishName: data.englishName || "",
+    cName: String(data.cName || "").trim(),
+    englishName: String(data.englishName || "").trim(),
     email: data.email,
-    password: data.password,
-    companyName: data.companyName,
-    taxId: data.taxId,
-    phone: data.phone,
-    extension: data.extension || "",
-    mobile: data.mobile || "",
+    ...passwordRecord,
+    companyName: String(data.companyName || "").trim(),
+    taxId: String(data.taxId || "").trim(),
+    phone: String(data.phone || "").trim(),
+    extension: String(data.extension || "").trim(),
+    mobile: String(data.mobile || "").trim(),
     jobTitle: "",
-    address: data.address,
-    invoiceAddress: data.invoiceAddress || data.address,
+    address: String(data.address || "").trim(),
+    invoiceAddress: String(data.invoiceAddress || data.address || "").trim(),
     fax: "",
     emailVerified: true,
+    privacyConsent: {
+      version: privacyNoticeVersion,
+      consentedAt: new Date().toISOString(),
+    },
   };
   state.members.push(member);
-  event.currentTarget.reset();
+  localStorage.removeItem(registrationAttemptKey);
+  form.reset();
+  updatePasswordStrength("");
+  window.grecaptcha?.reset();
   alert("Demo 已模擬完成 Email 驗證，現在登入會員系統。");
   loginMember(member);
 }
@@ -2003,6 +2198,8 @@ function bindEvents() {
   });
   $("#newApplicationBtn").addEventListener("click", startNewApplication);
   $("#staffIntakeForm").addEventListener("submit", submitStaffIntake);
+  $("#staffCaseSearch")?.addEventListener("input", renderKanban);
+  $("#staffCaseStatusFilter")?.addEventListener("change", renderKanban);
   $("#staffServiceType").addEventListener("change", () => {
     renderStaffCategoryFilter();
     renderStaffTests();
@@ -2031,8 +2228,28 @@ function bindEvents() {
     syncInvoiceAddress();
   });
   registerForm.elements.address.addEventListener("input", syncInvoiceAddress);
+  registerForm.elements.password.addEventListener("input", (event) => {
+    updatePasswordStrength(event.target.value);
+  });
+  registerForm.elements.showRegistrationPassword.addEventListener("change", (event) => {
+    const type = event.target.checked ? "text" : "password";
+    registerForm.elements.password.type = type;
+    registerForm.elements.confirmPassword.type = type;
+  });
 
-  document.body.addEventListener("click", (event) => {
+  const privacyDialog = $("#privacyNoticeDialog");
+  $("#openPrivacyNoticeBtn").addEventListener("click", () => privacyDialog.showModal());
+  $("#closePrivacyNoticeBtn").addEventListener("click", () => privacyDialog.close());
+  $("#dismissPrivacyNoticeBtn").addEventListener("click", () => privacyDialog.close());
+  $("#acceptPrivacyNoticeBtn").addEventListener("click", () => {
+    registerForm.elements.privacyConfirm.checked = true;
+    privacyDialog.close();
+  });
+  privacyDialog.addEventListener("click", (event) => {
+    if (event.target === privacyDialog) privacyDialog.close();
+  });
+
+  document.body.addEventListener("click", async (event) => {
     if (event.target.dataset.goVendorLogin !== undefined) {
       setView("login");
       return;
@@ -2106,8 +2323,15 @@ function bindEvents() {
         markInternalStep(caseData, "製作申請簽呈");
         saveState();
         renderKanban();
-        openInternalMemo(caseData);
+        await downloadOfficialDocx(caseData, "memo");
       }
+      return;
+    }
+
+    const syncDetailCaseId = event.target.dataset.syncDetail;
+    if (syncDetailCaseId) {
+      const caseData = ensureInternalCase(state.cases.find((item) => item.id === syncDetailCaseId));
+      if (caseData) await syncCaseToDetail(caseData, event.target);
       return;
     }
 

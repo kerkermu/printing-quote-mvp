@@ -12,4 +12,5 @@ __pycache__/
 *.pyc
 generated_forms/
 private_templates/
+/templates/memo_template.docx
 /tools/cloudflared.exe

@@ -44,6 +44,8 @@
 ```
 
 正式部署時，請將官方模板放在伺服器私有目錄，不要放在公開網站目錄。
+簽呈功能需要部署人員另外放置內部 Word 範本至 `templates/memo_template.docx`。
+此檔案由部署主機保管，Git 儲存庫不包含該檔案。正式對外開放前，須限制靜態檔案服務可讀取的目錄。
 
 ## 本機開啟
 
@@ -60,3 +62,28 @@
 ```text
 http://127.0.0.1:8765/
 ```
+
+## 註冊安全驗證
+
+啟動前須在主機設定 `RECAPTCHA_SECRET_KEY`，並搭配 `index.html` 中同一組的公開 site key。
+目前頁面使用測試 site key。正式部署時請替換為正式網域的金鑰組，私密金鑰只設定在主機。
+
+## 線上申請 LINE 通知
+
+廠商送出新申請後，主機會將 Word 申請書保存到
+`generated_forms/online_intake/<完整收件 ID>/申請書.docx`，然後在背景通知指定的人員。
+通知包含廠商名稱、檢測類別、案件類型、勾選項目數量和台灣收件時間。
+「申請書查找碼」是資料夾名稱的前 12 個字元。收件資料夾從主機檔案總管查看，網頁的「我的案件」仍依各瀏覽器保存。
+重新下載申請書或由同仁代建案件不會發送通知。
+
+在啟動 `server.py` 的 PowerShell 視窗設定下列環境變數，並重新啟動服務：
+
+```powershell
+$env:PTRI_LINE_CHANNEL_ACCESS_TOKEN = '<LINE Messaging API channel access token>'
+$env:PTRI_LINE_USER_IDS = '<承辦人 user ID>,<組長 user ID>'
+```
+
+收件人可設定一位或多位，須先加該 LINE 官方帳號好友。
+收件 ID 是 Messaging API 的 `U...` user ID，可依 [LINE 官方說明](https://developers.line.biz/en/docs/messaging-api/getting-user-ids/) 取得。
+兩項環境變數皆未設定時，申請流程照常運作，LINE 通知停用。請勿把權杖寫入前端、版本庫或共享文件。
+測試版每個伺服器程序每 24 小時最多排入 30 筆通知。超限或發送失敗會記在伺服器日誌，申請書仍會保存。

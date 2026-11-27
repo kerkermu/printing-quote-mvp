@@ -168,11 +168,24 @@ def keep_cell_on_one_line(target_cell) -> None:
         tc_pr.append(OxmlElement("w:noWrap"))
 
 
+def fit_cell_text(target_cell) -> None:
+    tc_pr = target_cell._tc.get_or_add_tcPr()
+    if tc_pr.find(qn("w:fitText")) is None:
+        fit_text = OxmlElement("w:fitText")
+        fit_text.set(qn("w:val"), "true")
+        tc_pr.append(fit_text)
+
+
 def set_cell_width(target_cell, width: int) -> None:
     tc_w = target_cell._tc.get_or_add_tcPr().tcW
     if tc_w is not None:
         tc_w.w = width
         tc_w.type = "dxa"
+
+
+def remove_trailing_blank_paragraphs(target_cell, keep: int = 1) -> None:
+    while len(target_cell.paragraphs) > keep and not target_cell.paragraphs[-1].text.strip():
+        target_cell._tc.remove(target_cell.paragraphs[-1]._p)
 
 
 def no_break(value: str) -> str:
@@ -248,6 +261,9 @@ def replace_in_paragraph(
 def mark_checked_boxes(doc: Document, selected_item_ids: list[str], label_map: dict[str, str]) -> None:
     selected_labels = {label_map[item_id] for item_id in selected_item_ids if item_id in label_map}
     replacements = {}
+    for label in label_map.values():
+        replacements[f"■ {label}"] = f"□ {label}"
+        replacements[f"■{label}"] = f"□{label}"
     for label in selected_labels:
         replacements[f"□ {label}"] = f"■ {label}"
         replacements[f"□{label}"] = f"■{label}"
@@ -272,7 +288,8 @@ def fill_common_fields(doc: Document, data: dict) -> None:
 
     set_cell_text(cell(table.rows[0], 2), customer.get("company_name", ""))
     keep_cell_on_one_line(cell(table.rows[0], 11))
-    set_cell_text(cell(table.rows[0], 11), roc_date(application_date), 11, WD_ALIGN_PARAGRAPH.CENTER)
+    fit_cell_text(cell(table.rows[0], 11))
+    set_cell_text(cell(table.rows[0], 11), roc_date(application_date), 9, WD_ALIGN_PARAGRAPH.CENTER)
     set_cell_text(cell(table.rows[1], 2), customer.get("invoice_address") or customer.get("address", ""))
     set_cell_text(cell(table.rows[1], 11), customer.get("tax_id", ""), alignment=WD_ALIGN_PARAGRAPH.CENTER)
     set_cell_text(cell(table.rows[2], 2), customer.get("address", ""))
@@ -335,6 +352,10 @@ def fill_common_fields(doc: Document, data: dict) -> None:
     chinese_report_count = 1 + int(sample.get("extra_chinese_reports") or 0)
     english_report_count = int(sample.get("english_reports") or 0)
     replace_report_copy_lines(table, chinese_report_count, english_report_count)
+
+    # The paper template contains a redundant empty paragraph beside item 3.
+    # Filled content makes that paragraph push the footer onto a second page.
+    remove_trailing_blank_paragraphs(cell(table.rows[11], 1))
 
 
 def fill_sample_cell(target_cell, name: str, quantity: str, description: str) -> None:

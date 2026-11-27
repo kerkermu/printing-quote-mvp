@@ -9,6 +9,7 @@
       content="印研中心檢測線上報價暨文件產生系統 MVP demo"
     />
     <link rel="stylesheet" href="./styles.css" />
+    <script src="https://www.google.com/recaptcha/api.js?hl=zh-TW" async defer></script>
   </head>
   <body>
     <div class="app-shell">
@@ -61,7 +62,9 @@
           <div class="service-contact">
             <strong>服務窗口</strong>
             <span>印研中心檢測服務承辦</span>
-            <span>張世傑｜02-29990016#153｜傳真 02-29990018</span>
+            <span>承辦人：張世傑</span>
+            <span class="contact-number">電話：02-29990016#153</span>
+            <span class="contact-number">傳真：02-29990018</span>
           </div>
         </section>
 
@@ -143,11 +146,12 @@
                 </label>
                 <label>
                   密碼
-                  <input required name="password" type="password" minlength="8" placeholder="至少 8 個英數字元" autocomplete="new-password" />
+                  <input required name="password" type="password" minlength="8" maxlength="72" placeholder="至少 8 個字元，包含英文與數字" autocomplete="new-password" />
+                  <span class="password-strength" id="passwordStrength" aria-live="polite">尚未輸入密碼</span>
                 </label>
                 <label>
                   確認密碼
-                  <input required name="confirmPassword" type="password" placeholder="請再一次輸入密碼" autocomplete="new-password" />
+                  <input required name="confirmPassword" type="password" minlength="8" maxlength="72" placeholder="請再一次輸入密碼" autocomplete="new-password" />
                 </label>
                 <label>
                   統一編號
@@ -177,9 +181,24 @@
                   發票地址
                   <input required name="invoiceAddress" />
                 </label>
-                <label class="full-row check-label privacy-check">
-                  <input required name="privacyConfirm" type="checkbox" />
-                  同意提供資料供檢測申請、報價與案件聯絡使用
+                <div class="full-row privacy-consent">
+                  <label class="check-label privacy-check">
+                    <input required name="privacyConfirm" type="checkbox" />
+                    我已閱讀並同意
+                  </label>
+                  <button class="text-link" id="openPrivacyNoticeBtn" type="button">個人資料蒐集告知暨隱私權聲明</button>
+                </div>
+                <div class="full-row captcha-field">
+                  <span>安全驗證</span>
+                  <div class="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI" data-theme="light"></div>
+                </div>
+                <label class="full-row check-label">
+                  <input name="showRegistrationPassword" type="checkbox" />
+                  顯示密碼
+                </label>
+                <label class="bot-field" aria-hidden="true">
+                  請勿填寫此欄位
+                  <input name="website" tabindex="-1" autocomplete="off" />
                 </label>
                 <button class="primary-button full-row" type="submit">建立會員並開始詢價</button>
               </form>
@@ -463,6 +482,19 @@
               </div>
               <button class="primary-button" type="button" data-view="staffIntake">建立代收案件</button>
             </div>
+            <div class="admin-toolbar">
+              <label class="admin-search">
+                <span>搜尋案件</span>
+                <input id="staffCaseSearch" type="search" placeholder="案件編號、公司、聯絡人或樣品" />
+              </label>
+              <label>
+                <span>案件狀態</span>
+                <select id="staffCaseStatusFilter">
+                  <option value="">全部狀態</option>
+                </select>
+              </label>
+              <span class="admin-result-count" id="staffCaseCount"></span>
+            </div>
             <div class="kanban" id="kanban"></div>
           </section>
         </section>
@@ -618,6 +650,69 @@
         </section>
       </main>
     </div>
+
+    <dialog id="privacyNoticeDialog" aria-labelledby="privacyNoticeTitle">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">Privacy Notice</p>
+          <h2 id="privacyNoticeTitle">個人資料蒐集告知暨隱私權聲明</h2>
+        </div>
+        <button class="icon-button" id="closePrivacyNoticeBtn" type="button" aria-label="關閉聲明" title="關閉">×</button>
+      </div>
+      <article class="privacy-notice-content">
+        <p>
+          財團法人印刷創新科技研究發展中心（以下稱本中心）依個人資料保護法第八條第一項規定，
+          向您告知下列事項，請詳閱：
+        </p>
+
+        <h3>一、蒐集目的</h3>
+        <p>會員註冊與管理、檢測申請、報價、案件聯絡、文件回傳、繳費紀錄、報告交付及相關業務管理。</p>
+
+        <h3>二、蒐集的個人資料類別</h3>
+        <p>
+          姓名、服務公司名稱、統一編號、職稱、電子郵件、電話、行動電話、傳真、公司地址、發票地址、
+          帳號資料、檢測申請內容、上傳文件及系統操作紀錄。
+        </p>
+
+        <h3>三、個人資料利用期間、地區、對象及方式</h3>
+        <ol>
+          <li>期間：業務辦理期間及法令、會計或檔案管理規定應保存的期間。</li>
+          <li>地區：本中心及提供系統服務的資訊服務所在地。</li>
+          <li>對象：本中心相關承辦人員，以及受本中心委託提供網站、郵件、驗證、儲存或維護服務的廠商。</li>
+          <li>方式：以紙本、電子文件、自動化系統、電子郵件、電話或其他合法方式處理及利用。</li>
+        </ol>
+
+        <h3>四、當事人得行使的權利</h3>
+        <p>
+          您可依法向本中心請求查詢、閱覽、製給複製本、補充、更正、停止蒐集、處理或利用，以及刪除個人資料。
+          但因法令或執行業務所必須者，不在此限。
+        </p>
+
+        <h3>五、權利行使方式</h3>
+        <p>請以書面、電子郵件或電話聯絡本中心檢測服務承辦人張世傑，電話：02-29990016 分機 153。</p>
+
+        <h3>六、不提供個人資料的影響</h3>
+        <p>
+          您可自由選擇是否提供個人資料；若未提供必要資料，本中心可能無法完成會員註冊、檢測申請、
+          報價、案件聯絡或報告交付。
+        </p>
+
+        <h3>七、第三方驗證服務</h3>
+        <p>
+          本系統使用 Google reCAPTCHA 防止自動化濫用，使用時可能由 Google 蒐集必要的裝置、網路及操作資訊，
+          並適用
+          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google 隱私權政策</a>
+          與
+          <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">服務條款</a>。
+        </p>
+
+        <p class="privacy-version">聲明版本：2026-10-27-v1</p>
+      </article>
+      <div class="dialog-actions">
+        <button class="ghost-button" id="dismissPrivacyNoticeBtn" type="button">關閉</button>
+        <button class="primary-button" id="acceptPrivacyNoticeBtn" type="button">同意並關閉</button>
+      </div>
+    </dialog>
 
     <script src="./app.js"></script>
   </body>
