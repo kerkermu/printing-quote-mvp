@@ -7,6 +7,7 @@ import re
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from threading import Lock
 from time import monotonic, sleep
 from unicodedata import category
@@ -17,20 +18,43 @@ from urllib.request import Request, urlopen
 TAIWAN_TIMEZONE = timezone(timedelta(hours=8))
 
 
+def recipient_file_path() -> Path:
+    configured = os.environ.get("PTRI_LINE_RECIPIENTS_FILE", "").strip()
+    base = Path(os.environ.get("LOCALAPPDATA") or Path.home())
+    path = Path(configured) if configured else base / "PTRI" / "line-recipients.txt"
+    if not path.is_absolute() or path.resolve().is_relative_to(Path(__file__).resolve().parents[1]):
+        raise ValueError("收件名單必須位於網站目錄外，且須使用絕對路徑。")
+    return path
+
+
 class LineNotifications:
     def __init__(self) -> None:
         self.token = os.environ.get("PTRI_LINE_CHANNEL_ACCESS_TOKEN", "").strip()
-        self.recipients = list(dict.fromkeys(
-            value.strip() for value in os.environ.get("PTRI_LINE_USER_IDS", "").split(",")
-            if value.strip()
-        ))
-        if bool(self.token) != bool(self.recipients) or len(self.recipients) > 10 or any(
-            not re.fullmatch(r"U[0-9a-fA-F]{32}", value) for value in self.recipients
-        ):
+        filename = os.environ.get("PTRI_LINE_RECIPIENTS_FILE", "").strip()
+        self.recipient_file = None
+        if filename or self.token:
+            path = recipient_file_path()
+            if filename or path.is_file():
+                self.recipient_file = path
+        self.recipients = []
+        if self.recipient_file is None:
+            self.recipients = self._validate(os.environ.get("PTRI_LINE_USER_IDS", "").split(","))
+        has_targets = bool(self.recipient_file or self.recipients)
+        query_only = self.token and os.environ.get("PTRI_LINE_CHANNEL_SECRET", "").strip() and not has_targets
+        if bool(self.token) != has_targets and not query_only:
             raise ValueError("Invalid LINE token or recipient configuration.")
         self._timestamps = deque()
         self._lock = Lock()
         self._worker = ThreadPoolExecutor(max_workers=1, thread_name_prefix="line-notify")
+
+    @staticmethod
+    def _validate(values: list[str]) -> list[str]:
+        recipients = list(dict.fromkeys(value.strip() for value in values if value.strip()))
+        if len(recipients) > 10 or any(
+            not re.fullmatch(r"U[0-9a-fA-F]{32}", value) for value in recipients
+        ):
+            raise ValueError("Invalid LINE recipient list.")
+        return recipients
 
     def queue(
         self,
@@ -42,6 +66,18 @@ class LineNotifications:
         item_count: int,
     ) -> None:
         if not self.token:
+            return
+        recipients = self.recipients
+        if self.recipient_file is not None:
+            try:
+                lines = self.recipient_file.read_text(encoding="utf-8-sig").splitlines()
+                recipients = self._validate([line.partition("#")[0] for line in lines])
+            except (OSError, ValueError):
+                logging.warning("LINE recipient file unreadable or invalid for %s", submission_id)
+                return
+            if not recipients:
+                return
+        elif not recipients:
             return
         company_name = " ".join(
             "".join(char for char in company if category(char) != "Cf").split()
@@ -66,13 +102,13 @@ class LineNotifications:
                 logging.warning("LINE daily notification limit reached for %s", submission_id)
                 return
             self._timestamps.append(now)
-            self._worker.submit(self._send, submission_id, message)
+            self._worker.submit(self._send, submission_id, message, recipients)
 
-    def _send(self, submission_id: str, message: str) -> None:
+    def _send(self, submission_id: str, message: str, recipients: list[str]) -> None:
         request = Request(
             "https://api.line.me/v2/bot/message/multicast",
             data=json.dumps({
-                "to": self.recipients,
+                "to": recipients,
                 "messages": [{"type": "text", "text": message}],
             }).encode("utf-8"),
             headers={

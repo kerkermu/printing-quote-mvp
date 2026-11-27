@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import mimetypes
 import os
@@ -18,13 +20,16 @@ from uuid import UUID
 from tools.fill_official_application import INK_TEMPLATE, PAPER_TEMPLATE, fill_application
 from tools.fill_quote import QUOTE_TEMPLATE, fill_quote, quote_data_from_payload
 from tools.fill_memo import MEMO_TEMPLATE, fill_memo, memo_data_from_payload
-from tools.line_notifications import LineNotifications
+from tools.line_notifications import LineNotifications, recipient_file_path
+from tools.line_id_webhook import handle_id_query
+from tools.recipient_store import parse_list, read_snapshot, save_list
 
 
 ROOT = Path(__file__).resolve().parent
 GENERATED_DIR = ROOT / "generated_forms"
 ONLINE_INTAKE_DIR = GENERATED_DIR / "online_intake"
 ONLINE_INTAKE_LOCK = Lock()
+RECIPIENT_LOCK = Lock()
 PDF_EXPORT_SCRIPT = GENERATED_DIR / "_export_word_pdf.ps1"
 DETAIL_SYNC_SCRIPT = ROOT / "tools" / "sync_detail.ps1"
 DETAIL_WORKBOOK = Path(
@@ -144,6 +149,24 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
         return super().send_head()
 
     def do_POST(self) -> None:
+        if self.path == "/webhook/line-id":
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+            except ValueError:
+                length = 0
+            if not 0 < length <= 2 * 1024 * 1024:
+                self.send_json({"ok": False}, status=413 if length > 0 else 400)
+                return
+            status = handle_id_query(
+                self.rfile.read(length), self.headers.get("X-Line-Signature", ""),
+                os.environ.get("PTRI_LINE_CHANNEL_SECRET", "").strip(),
+                os.environ.get("PTRI_LINE_CHANNEL_ACCESS_TOKEN", "").strip(),
+            )
+            self.send_json({"ok": status == 200}, status=status)
+            return
+        if self.path == "/api/admin/line-recipients":
+            self.handle_line_recipients()
+            return
         if self.path not in (
             "/api/submit-application",
             "/api/generate-application",
@@ -188,6 +211,51 @@ class QuoteMvpHandler(SimpleHTTPRequestHandler):
                 self.send_docx(output)
         except Exception as exc:  # noqa: BLE001 - surface controlled error to MVP UI
             self.send_json({"ok": False, "error": str(exc)}, status=500)
+
+    def handle_line_recipients(self) -> None:
+        secret = os.environ.get("PTRI_LINE_ADMIN_PASSWORD")
+        if not secret:
+            self.send_json({"error": "主機尚未設定 LINE 名單管理密碼。"}, status=503)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 131072 or self.headers.get_content_type() != "application/json":
+                raise ValueError("要求格式錯誤。")
+            body = json.loads(self.rfile.read(length))
+            if not isinstance(body, dict):
+                raise ValueError("要求格式錯誤。")
+            password = body.get("password")
+            if not isinstance(password, str) or not hmac.compare_digest(password.encode(), secret.encode()):
+                self.send_json({"error": "管理密碼不正確。"}, status=403)
+                return
+            with RECIPIENT_LOCK:
+                path = recipient_file_path()
+                snapshot = read_snapshot(path)
+                raw = snapshot if snapshot is not None else "\n".join(
+                    os.environ.get("PTRI_LINE_USER_IDS", "").split(",")
+                ).encode()
+                rows, notes = parse_list(raw)
+                revision = hashlib.sha256(raw).hexdigest()
+                if body.get("action") == "save":
+                    if body.get("revision") != revision:
+                        self.send_json({"error": "名單已變更，請重新載入後再編輯。"}, status=409)
+                        return
+                    rows = body.get("rows")
+                    if not isinstance(rows, list) or not all(
+                        isinstance(row, list) and len(row) == 3 and isinstance(row[0], bool)
+                        and isinstance(row[1], str) and isinstance(row[2], str) for row in rows
+                    ):
+                        raise ValueError("收件名單格式錯誤。")
+                    saved = save_list(path, snapshot, rows, notes)
+                    revision = hashlib.sha256(saved).hexdigest()
+                    if self.line_notifications is not None:
+                        self.line_notifications.recipient_file = path
+                elif body.get("action") != "load":
+                    raise ValueError("無效操作。")
+            self.send_json({"rows": rows, "revision": revision,
+                            "notificationsEnabled": bool(self.line_notifications and self.line_notifications.token)})
+        except (ValueError, OSError) as exc:
+            self.send_json({"error": str(exc) if isinstance(exc, ValueError) else "無法讀寫主機名單檔。"}, status=400)
 
     def handle_application_submission(self) -> None:
         try:

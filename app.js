@@ -448,7 +448,7 @@ function syncCaseStepsFromStatus(caseData) {
 
 function setView(viewName) {
   const guestViews = new Set(["login", "staffLogin"]);
-  const staffViews = new Set(["admin", "staffIntake", "caseDetail"]);
+  const staffViews = new Set(["admin", "staffIntake", "caseDetail", "lineRecipients"]);
   const vendorViews = new Set(["quote", "cases", "caseDetail", "submission", "settings"]);
   if (!state.user && !guestViews.has(viewName)) {
     viewName = "login";
@@ -458,6 +458,12 @@ function setView(viewName) {
     viewName = "cases";
   }
 
+  if (currentViewName() === "quote" && viewName !== "quote" && draftSaveTimer !== null) {
+    clearTimeout(draftSaveTimer);
+    draftSaveTimer = null;
+    saveCurrentDraft();
+  }
+  if (viewName !== "lineRecipients") resetLineEditor();
   $$(".view").forEach((view) => view.classList.remove("active"));
   $$(".nav-item").forEach((item) => item.classList.remove("active"));
 
@@ -476,6 +482,7 @@ function setView(viewName) {
     caseDetail: "案件明細",
     submission: "簽章文件繳交專區",
     admin: "內部後台",
+    lineRecipients: "LINE 通知收件人",
     staffIntake: "同仁代建案件",
     settings: "帳戶資料",
   };
@@ -562,19 +569,17 @@ function renderCategoryFilter() {
 }
 
 function renderTests() {
-  const category = $("#categoryFilter")?.value || "all";
+  const category = $("#categoryFilter")?.value || "paper";
   const serviceType = $("#serviceType")?.value || "paper";
   const allowedCategories = categories
     .filter((item) => item.serviceType === serviceType)
     .map((item) => item.id);
-  const visibleItems = testItems.filter(
-    (item) => allowedCategories.includes(item.category) && item.category === category
-  );
+  const visibleItems = testItems.filter((item) => allowedCategories.includes(item.category));
 
   $("#testList").innerHTML = visibleItems
     .map(
       (item) => `
-      <label class="test-item">
+      <label class="test-item" data-category="${item.category}" ${item.category === category ? "" : "hidden"}>
         <input type="checkbox" name="tests" value="${item.id}" />
         <span>
           <h4>${item.name}</h4>
@@ -617,6 +622,12 @@ function calculateEstimate() {
   $("#urgentText").textContent = rushFee ? `${money(rushFee)}（${caseType}）` : money(0);
   $("#taxText").textContent = "單價已含稅";
   $("#totalText").textContent = money(total);
+  $("#quoteCount").textContent = `已選 ${items.length} 項`;
+  $("#openEstimate").firstChild.textContent = `已選 ${items.length} 項 · 查看明細 ↑ `;
+  $("#openEstimate strong").textContent = money(total);
+  $("#estimateItems").innerHTML = items.map(item =>
+    `<li><span>${item.name}</span><span>${money(item.price)}</span></li>`
+  ).join("");
 
   return {
     rawSubtotal,
@@ -655,7 +666,7 @@ function requiredFieldRules() {
 }
 
 function clearValidationState(form) {
-  $$("[aria-invalid='true']").forEach((input) => input.removeAttribute("aria-invalid"));
+  form.querySelectorAll("[aria-invalid='true']").forEach((input) => input.removeAttribute("aria-invalid"));
   form.querySelector(".form-error-summary")?.remove();
 }
 
@@ -665,7 +676,8 @@ function markInvalid(input) {
 }
 
 function showValidationErrors(form, messages, firstInvalidInput) {
-  clearValidationState(form);
+  const section = firstInvalidInput?.closest(".quote-section");
+  if (section) showQuoteSection(section.id);
   const summary = document.createElement("div");
   summary.className = "form-error-summary";
   summary.innerHTML = `
@@ -678,6 +690,7 @@ function showValidationErrors(form, messages, firstInvalidInput) {
 }
 
 function validateQuoteForm(form, formData, estimate) {
+  clearValidationState(form);
   const messages = [];
   let firstInvalidInput = null;
   const addError = (message, input) => {
@@ -789,11 +802,31 @@ function createCase(formData, estimate, options = {}) {
   };
 }
 
-async function submitQuote(event) {
+function showQuoteSection(id) {
+  $$(".quote-section").forEach(section => section.hidden = section.id !== id);
+  $$(".application-tabs button").forEach(button =>
+    button.setAttribute("aria-pressed", String(button.getAttribute("aria-controls") === id))
+  );
+}
+
+function reviewQuote(event) {
   event.preventDefault();
   if (state.isSubmittingQuote) return;
   const form = event.currentTarget;
-  const submitButton = event.submitter || form.querySelector('button[type="submit"]');
+  const estimate = calculateEstimate();
+  if ($("#estimateSheet").open) $("#estimateSheet").close();
+  const data = readForm(form);
+  if (!validateQuoteForm(form, data, estimate)) return;
+  $("#reviewDetails").textContent = [data.companyName, data.sampleName, data.caseType,
+    estimate.items.map(item => item.name).join("、"), `預估含稅總額 ${money(estimate.total)}`].join("\n");
+  $("#quoteReview").showModal();
+}
+
+async function submitQuote() {
+  if (state.isSubmittingQuote) return;
+  $("#quoteReview").close();
+  const form = $("#quoteForm");
+  const submitButton = form.querySelector('button[type="submit"]');
   const estimate = calculateEstimate();
   const formData = readForm(form);
   if (!validateQuoteForm(form, formData, estimate)) {
@@ -814,6 +847,8 @@ async function submitQuote(event) {
 
   try {
     await downloadOfficialDocx(newCase, "application", { submit: true });
+    clearTimeout(draftSaveTimer);
+    draftSaveTimer = null;
     state.cases.unshift(newCase);
     if (submittedDraftId) {
       state.drafts = state.drafts.filter((draft) => draft.id !== submittedDraftId);
@@ -832,7 +867,7 @@ async function submitQuote(event) {
     state.isSubmittingQuote = false;
     if (submitButton) {
       submitButton.disabled = false;
-      submitButton.textContent = "送出並產生文件";
+      submitButton.textContent = "確認申請內容";
     }
   }
 }
@@ -929,11 +964,16 @@ function saveCurrentDraft() {
 
 function scheduleDraftSave() {
   clearTimeout(draftSaveTimer);
-  draftSaveTimer = setTimeout(saveCurrentDraft, 450);
+  draftSaveTimer = setTimeout(() => {
+    draftSaveTimer = null;
+    saveCurrentDraft();
+  }, 450);
 }
 
 function startNewApplication() {
   const form = $("#quoteForm");
+  clearValidationState(form);
+  showQuoteSection("quoteTests");
   state.activeDraftId = null;
   form.reset();
   $("#serviceType").value = "paper";
@@ -949,6 +989,8 @@ function openDraft(draftId) {
   const draft = state.drafts.find((item) => item.id === draftId);
   if (!draft) return;
   const form = $("#quoteForm");
+  clearValidationState(form);
+  showQuoteSection("quoteTests");
   const data = draft.data || {};
   state.activeDraftId = draft.id;
   form.reset();
@@ -2131,7 +2173,10 @@ function bindEvents() {
   $("#quoteForm").noValidate = true;
 
   $$(".nav-item").forEach((button) => {
-    button.addEventListener("click", () => setView(button.dataset.view));
+    button.addEventListener("click", () => {
+      if (button.dataset.view === "quote" && currentViewName() !== "quote") startNewApplication();
+      else setView(button.dataset.view);
+    });
   });
 
   $("#memberLoginForm").addEventListener("submit", submitMemberLogin);
@@ -2147,6 +2192,7 @@ function bindEvents() {
     setView("staffLogin");
   });
   $("#logoutBtn").addEventListener("click", () => {
+    if (draftSaveTimer !== null) saveCurrentDraft();
     state.user = null;
     state.role = "guest";
     localStorage.removeItem("ptri_user");
@@ -2186,14 +2232,31 @@ function bindEvents() {
     calculateEstimate();
     scheduleDraftSave();
   });
-  $("#quoteForm").addEventListener("submit", submitQuote);
+  $("#quoteForm").addEventListener("submit", reviewQuote);
+  $("#confirmQuote").addEventListener("click", submitQuote);
+  $("#editQuote").onclick = () => $("#quoteReview").close();
+  $$(".application-tabs button").forEach(button => {
+    button.onclick = () => showQuoteSection(button.getAttribute("aria-controls"));
+  });
+  const sheet = $("#estimateSheet");
+  $("#openEstimate").onclick = () => {
+    sheet.append($("#quoteEstimate"));
+    sheet.showModal();
+  };
+  $("#closeEstimate").onclick = () => sheet.close();
+  sheet.addEventListener("close", () => $("#estimateDock").append($("#quoteEstimate")));
+  matchMedia("(max-width: 760px)").addEventListener("change", () => {
+    if (sheet.open) sheet.close();
+  });
   $("#serviceType").addEventListener("change", () => {
     renderCategoryFilter();
     renderTests();
     calculateEstimate();
   });
   $("#categoryFilter").addEventListener("change", () => {
-    renderTests();
+    $$("#testList [data-category]").forEach(row => {
+      row.hidden = row.dataset.category !== $("#categoryFilter").value;
+    });
     calculateEstimate();
   });
   $("#newApplicationBtn").addEventListener("click", startNewApplication);
@@ -2536,6 +2599,7 @@ function bindEvents() {
 }
 
 function init() {
+  showQuoteSection("quoteTests");
   renderCategoryFilter();
   renderTests();
   markRequiredFields($("#quoteForm"));

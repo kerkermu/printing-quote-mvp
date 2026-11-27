@@ -29,6 +29,7 @@
           <button class="nav-item" data-view="settings" data-audience="vendor">會員資料</button>
           <button class="nav-item" data-view="admin" data-audience="staff">待處理案件</button>
           <button class="nav-item" data-view="staffIntake" data-audience="staff">代建案件</button>
+          <button class="nav-item" data-view="lineRecipients" data-audience="staff">LINE 通知收件人</button>
         </nav>
 
         <section class="account-panel">
@@ -233,16 +234,19 @@
         </section>
 
         <section class="view" id="quoteView">
-          <div class="workflow">
-            <span class="step active">1 公司資料</span>
-            <span class="step active">2 樣品資料</span>
-            <span class="step active">3 檢測項目</span>
-            <span class="step">4 文件產生</span>
+          <div class="application-banner">
+            <p>印刷適性實驗室</p><h1>廠商新增申請</h1>
+            <p>填寫樣品資料，選擇所需檢測並確認報價。</p>
           </div>
-
           <form class="quote-layout" id="quoteForm">
-            <p class="required-note">標示 <span>*</span> 為必填欄位</p>
-            <section class="panel">
+            <article class="application-fields">
+              <nav class="application-tabs" aria-label="申請區段">
+                <button type="button" aria-controls="quoteCustomer">公司資料</button>
+                <button type="button" aria-controls="quoteSample">樣品資料</button>
+                <button type="button" aria-controls="quoteTests">檢測項目</button>
+              </nav>
+              <p class="quote-required-note">標示 <span class="required-mark">*</span> 的欄位為必填。</p>
+            <section class="quote-section" id="quoteCustomer">
               <div class="section-heading">
                 <div>
                   <p class="eyebrow">Customer</p>
@@ -294,7 +298,7 @@
               </div>
             </section>
 
-            <section class="panel">
+            <section class="quote-section" id="quoteSample">
               <div class="section-heading">
                 <div>
                   <p class="eyebrow">Sample</p>
@@ -347,7 +351,7 @@
               </div>
             </section>
 
-            <section class="panel">
+            <section class="quote-section" id="quoteTests">
               <div class="section-heading">
                 <div>
                   <p class="eyebrow">Printability Tests</p>
@@ -367,15 +371,18 @@
                   </label>
                 </div>
               </div>
-              <div class="test-list" id="testList"></div>
+              <div class="test-list" id="testList" tabindex="-1"></div>
               <p class="fine-print price-note">
                 收費標準依 114 年 6 月 1 日實施之紙張、印刷品及油墨適性檢測申請程序。每案檢測費用未滿 NT$2,500，以 NT$2,500 計費；特急件與專案項目需另行確認。
               </p>
             </section>
 
-            <aside class="summary-panel">
-              <p class="eyebrow">Estimate</p>
-              <h3>預估報價</h3>
+            </article>
+            <div id="estimateDock">
+            <aside class="summary-panel" id="quoteEstimate">
+              <button type="button" id="closeEstimate" class="ghost-button">收合明細</button>
+              <h3>估價摘要 <small id="quoteCount"></small></h3>
+              <ul id="estimateItems"></ul>
               <dl>
                 <div>
                   <dt>檢測小計</dt>
@@ -401,10 +408,18 @@
               <p class="fine-print">
                 本金額為系統預估，實際金額與時程仍以印研中心確認樣品與檢測條件後為準。
               </p>
-              <p class="draft-save-status" id="draftSaveStatus">尚未建立草稿</p>
-              <button class="primary-button" type="submit">送出並產生文件</button>
+              <p class="draft-save-status" id="draftSaveStatus" role="status">尚未建立草稿</p>
+              <button class="primary-button" type="submit">確認申請內容</button>
             </aside>
+            </div>
+            <dialog id="estimateSheet" aria-label="估價摘要"></dialog>
+            <button type="button" id="openEstimate" aria-haspopup="dialog">查看明細 <strong></strong></button>
           </form>
+          <dialog id="quoteReview" aria-labelledby="quoteReviewTitle">
+            <h3 id="quoteReviewTitle">送出前確認</h3><p id="reviewDetails"></p>
+            <div class="dialog-actions"><button type="button" class="ghost-button" id="editQuote">返回修改</button>
+            <button type="button" class="primary-button" id="confirmQuote">送出並產生文件</button></div>
+          </dialog>
         </section>
 
         <section class="view" id="casesView">
@@ -497,6 +512,25 @@
             </div>
             <div class="kanban" id="kanban"></div>
           </section>
+        </section>
+
+        <section class="view" id="lineRecipientsView">
+          <div class="panel">
+            <form id="lineUnlock" class="form-grid">
+              <label>名單管理密碼<input type="password" name="password" required autocomplete="off" /></label>
+              <div><button class="primary-button" type="submit">載入收件名單</button></div>
+            </form>
+            <form id="lineEditor" hidden>
+              <fieldset id="lineFields">
+                <legend>新申請通知名單</legend>
+                <p class="fine-print">開通 LINE 自助查詢後，同事可私訊本中心官方帳號「查詢我的ID」，長按複製回覆的代碼。</p>
+                <div id="lineRows"></div>
+                <button class="ghost-button" type="button" id="lineAdd">新增收件人</button>
+                <button class="primary-button" type="submit">儲存名單</button>
+              </fieldset>
+            </form>
+            <p id="lineStatus" role="status"></p>
+          </div>
         </section>
 
         <section class="view" id="staffIntakeView">
@@ -714,6 +748,7 @@
       </div>
     </dialog>
 
+    <script src="./line-recipients.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>
